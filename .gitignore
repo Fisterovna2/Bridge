@@ -3,3 +3,7 @@ agent_system.log
 __pycache__/
 *.pyc
 .env
+*.log
+macros/*.json
+!macros/__init__.py
+*.tmp
