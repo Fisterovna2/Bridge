@@ -93,7 +93,7 @@ Be specific with coordinates and actions."""
                         ]
                     }
                 ],
-                max_tokens=1000
+                max_tokens=2000  # Increased for complex automation tasks
             )
             
             return response.choices[0].message.content
