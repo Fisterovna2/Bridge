@@ -27,6 +27,7 @@ try:
     import pydirectinput
     import google.generativeai as genai
     from PIL import Image, ImageFilter, ImageDraw
+    from tkinter import messagebox
 except ImportError as e:
     print(f"Error: Missing required dependency - {e}")
     print("Please install requirements: pip install -r requirements.txt")
@@ -512,9 +513,8 @@ Be specific with coordinates and actions."""
                     
                     # Use pydirectinput for games in FAIR_PLAY mode
                     if mode == OperationMode.FAIR_PLAY:
-                        for char in text:
-                            pydirectinput.press(char)
-                            time.sleep(interval)
+                        # Use pydirectinput.write for text input with human-like timing
+                        pydirectinput.write(text, interval=interval)
                     else:
                         pyautogui.write(text, interval=interval)
                     
@@ -888,7 +888,6 @@ class CuriosAgentGUI:
     
     def _confirm_action(self, action: str) -> bool:
         """Confirmation dialog for actions in NORMAL mode"""
-        from tkinter import messagebox
         return messagebox.askyesno(
             self.t["confirm_action"],
             f"{self.t['confirm_message']}\n\n{action}"
@@ -896,12 +895,10 @@ class CuriosAgentGUI:
     
     def _show_error(self, message: str):
         """Show error message"""
-        from tkinter import messagebox
         messagebox.showerror("Error", message)
     
     def _show_info(self, message: str):
         """Show info message"""
-        from tkinter import messagebox
         messagebox.showinfo("Info", message)
     
     def update_status(self, status: str):
