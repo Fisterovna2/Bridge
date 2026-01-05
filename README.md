@@ -1,333 +1,380 @@
-# Curios Agent v1.0
+# Curios Agent v2.0
 
-![Python](https://img.shields.io/badge/python-3.8%2B-blue)
-![License](https://img.shields.io/badge/license-See%20EULA-orange)
-![Status](https://img.shields.io/badge/status-stable-green)
+AI-powered desktop automation with computer vision.
 
-**AI-powered desktop automation agent with computer vision capabilities.**
+## Features
 
-Curios Agent is an intelligent desktop automation tool that combines AI vision (Google Gemini) with computer control to execute complex tasks on your PC. Built with safety and privacy in mind.
+- **Multi-mode operation**: Safe, Fair Play, or Sandbox modes
+- **Multiple AI providers**: Gemini, GPT-4V, Claude, Ollama, OpenRouter
+- **Plugin system**: Load custom plugins with hot reload
+- **Multi-monitor support**: Select and control specific monitors
+- **OCR text detection**: Find and click text on screen
+- **Custom macros**: Record, save, and playback action sequences
+- **Cloud sync**: Backup configurations via GitHub Gist
+- **Security**: Built-in protection against harmful actions
+- **Privacy**: Auto-blur sensitive data in screenshots
+- **Localization**: English and Russian support
 
-## ✨ Features
+## Quick Start
 
-### 🎮 Multi-Mode Operation
-- **NORMAL** - Safe mode with user confirmations (works everywhere)
-- **FAIR_PLAY** - Human-like behavior for games (VM only)
-- **CURIOS** - Sandbox mode without restrictions (VM only)
+### Installation
 
-### 🛡️ Built-in Security Kernel
-- ✅ Blocks malicious actions (system damage, malware, etc.)
-- ✅ Blocks financial operations (payments, transactions)
-- ✅ Blocks system commands in NORMAL mode
-- ✅ Self-protection: cannot modify own files
-- ✅ VM detection for dangerous modes
-- ✅ Comprehensive logging of all actions
-
-### 🔒 Privacy Protection
-- Blurs sensitive data on screenshots before sending to AI
-- Sanitizes logs (auto-hides API keys, passwords, tokens, emails, phone numbers)
-- No data collection or telemetry
-
-### 🤖 AI-Powered Automation
-- Computer vision with Google Gemini 1.5 Flash
-- Natural language instructions
-- Automatic action planning and execution
-- Mouse and keyboard control
-- Screenshot analysis
-
-### 🌍 Multi-Language Support
-- English (EN)
-- Russian (RU)
-
-### 🖥️ User-Friendly GUI
-- Modern CustomTkinter interface
-- Tabbed layout (Control Panel, Settings, Logs, About)
-- Real-time status updates
-- Dark theme
-
-## 📋 Requirements
-
-- **Python**: 3.8 or higher
-- **OS**: Windows, Linux, macOS
-- **VM**: Required for FAIR_PLAY and CURIOS modes
-- **API Key**: Google Gemini API key (free tier available)
-
-## 🚀 Installation
-
-### 1. Clone the repository
 ```bash
 git clone https://github.com/Fisterovna2/Bridge.git
 cd Bridge
-```
-
-### 2. Install dependencies
-```bash
 pip install -r requirements.txt
 ```
 
-### 3. Get Gemini API Key
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create a new API key
-3. Copy the key
+### Get API Keys
 
-### 4. Run the application
+You'll need at least one AI provider API key:
+
+- **Gemini**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey) (free tier available)
+- **OpenAI**: Get from [OpenAI Platform](https://platform.openai.com/api-keys)
+- **Claude**: Get from [Anthropic Console](https://console.anthropic.com/)
+- **OpenRouter**: Get from [OpenRouter](https://openrouter.ai/keys)
+- **Ollama**: Install locally from [Ollama](https://ollama.ai/) (no API key needed)
+
+### Run
+
 ```bash
 python curios_agent.py
 ```
 
-### 5. Configure
-1. Open **Settings** tab
-2. Paste your Gemini API key
-3. Select operation mode
-4. Choose language
-5. Click **Save Settings**
+## Configuration
 
-## 📖 Usage
+On first run, go to **Settings** tab and configure:
 
-### Basic Workflow
+1. **Operation Mode**: Choose NORMAL (safe), FAIR_PLAY (VM only), or CURIOS (VM only)
+2. **AI Provider**: Select your preferred AI service
+3. **API Keys**: Enter API keys for your chosen providers
+4. **Monitor**: Select which monitor to control
+5. **Language**: Choose English or Russian
+6. Click **Save Settings**
 
-1. **Enter Instruction**: In the Control Panel tab, type your task in natural language
-   - Example: "Open notepad and type 'Hello World'"
-   - Example: "Find and click the submit button"
-   - Example: "Scroll down and take a screenshot"
+## Usage
 
-2. **Execute**: Click the "Execute" button
-   - The agent will analyze your screen
-   - AI will plan the necessary actions
-   - Actions will be executed (with confirmations in NORMAL mode)
+### Basic Automation
 
-3. **Monitor**: Watch the Logs tab for real-time execution details
+1. Enter your instruction in natural language:
+   - "Open notepad and type 'Hello World'"
+   - "Find the submit button and click it"
+   - "Scroll down and screenshot the page"
 
-### Operation Modes
+2. Click **Execute**
+3. In NORMAL mode, confirm each action
+4. Watch the **Logs** tab for execution details
 
-#### NORMAL Mode (Recommended)
-- **Use Case**: General automation, learning, safe experimentation
-- **Safety**: Requires user confirmation for each action
-- **Restrictions**: Blocks system commands, harmful actions, financial operations
-- **Works**: Anywhere (host OS, VM)
+### Using OCR
 
-#### FAIR_PLAY Mode
-- **Use Case**: Game automation with human-like behavior
-- **Safety**: Uses human-like timing and input methods
-- **Restrictions**: Blocks harmful actions, financial operations
-- **Works**: VM only (will refuse to run on host OS)
+The agent can find and click text on screen:
 
-#### CURIOS Mode
-- **Use Case**: Advanced automation, testing in sandbox
-- **Safety**: Minimal restrictions (still blocks harmful/financial actions)
-- **Restrictions**: Blocks harmful actions, financial operations
-- **Works**: VM only (will refuse to run on host OS)
-
-### Example Instructions
-
-**Web Browsing:**
 ```
-Open Chrome and navigate to wikipedia.org
+find_text("Login")
+click_text("Submit")
 ```
 
-**File Operations:**
+These commands work automatically when the AI detects text-based tasks.
+
+### Recording Macros
+
+Macros let you record and replay action sequences:
+
+1. Start recording a macro
+2. Perform actions manually or via AI
+3. Stop recording
+4. Save the macro with a name
+5. Later, load and execute the saved macro
+
+Macros are stored in `macros/` as JSON files.
+
+### Using Plugins
+
+Plugins extend the agent's capabilities:
+
+1. Place plugin files in `plugins/` directory
+2. Plugins are loaded automatically on startup
+3. Example plugin available in `plugins/examples/example_plugin.py`
+
+Create custom plugins by extending the `BasePlugin` class:
+
+```python
+from plugins.base_plugin import BasePlugin
+
+class MyPlugin(BasePlugin):
+    def on_load(self):
+        # Plugin initialization
+        return True
+    
+    def on_action(self, action, context):
+        # Called for each action
+        return None
+    
+    def on_unload(self):
+        # Plugin cleanup
+        return True
 ```
-Create a new text file and save it as 'report.txt'
-```
 
-**Data Entry:**
-```
-Fill in the form with: Name: John, Email: john@example.com
-```
+### Cloud Sync
 
-**Research:**
-```
-Search for 'Python automation' and open the first 3 results
-```
+Sync your settings across devices using GitHub Gist:
 
-## 🛡️ Security Features
+1. Create a GitHub personal access token with `gist` scope
+2. Add token in Settings under API Keys (github field)
+3. Use Cloud Sync features to backup/restore
 
-### SecurityKernel Protection
+## Operation Modes
 
-The SecurityKernel monitors all actions and blocks:
+### NORMAL Mode
+- Safest option, works anywhere
+- Requires confirmation for each action
+- Blocks system commands
+- Best for learning and testing
 
-1. **Harmful Actions**
-   - System deletion (delete system32, rm -rf /, format c:)
-   - Process termination (shutdown, kill, taskkill)
-   - Malware keywords (virus, ransomware, exploit, hack)
-   - Data destruction (dd, wipe, corrupt)
+### FAIR_PLAY Mode
+- **Requires VM environment**
+- Human-like timing and input
+- For game automation
+- Still blocks harmful/financial operations
 
-2. **Financial Operations**
-   - Banking operations
-   - Payment processing
-   - Cryptocurrency transactions
-   - Money transfers
+### CURIOS Mode
+- **Requires VM environment**
+- Minimal restrictions (sandbox)
+- Maximum automation freedom
+- Still blocks harmful/financial operations
 
-3. **System Commands** (in NORMAL mode)
-   - Command line execution (cmd, powershell, bash)
-   - Administrative actions (sudo, run as admin)
-   - System installers
+## Multi-Monitor Support
 
-4. **Private Data Protection**
-   - Cannot access passwords, credentials, tokens
-   - Cannot read API keys, SSH keys
-   - Screenshots blur sensitive areas
-   - Logs auto-sanitize sensitive data
+The agent can detect and control multiple monitors:
 
-5. **Self-Protection**
-   - Cannot modify `curios_agent.py`
-   - Cannot modify `curios_config.json`
-   - Cannot modify `agent_system.log`
+- Monitors are auto-detected on startup
+- Select target monitor in Settings
+- Screenshot specific monitor or all monitors
+- Actions are executed on selected monitor
 
-### Privacy Features
+## AI Providers
 
-**Screenshot Privacy:**
-- Automatically blurs sensitive areas before sending to AI
-- Configurable in settings
+### Gemini (Google)
+- Fast and accurate
+- Good for general automation
+- Free tier available
+- Model: gemini-1.5-flash
 
-**Log Sanitization:**
-- API keys: `api_key: ***`
-- Passwords: `password: ***`
-- Tokens: `token: ***`
-- Emails: `***@***.***`
-- Phone numbers: `***-***-****`
+### OpenAI GPT-4V
+- High quality vision understanding
+- Detailed action planning
+- Requires paid API access
+- Model: gpt-4-vision-preview
 
-### VM Detection
+### Claude (Anthropic)
+- Excellent at complex tasks
+- Strong safety alignment
+- Requires paid API access
+- Model: claude-3-opus-20240229
 
-For FAIR_PLAY and CURIOS modes, the agent:
-- Detects VM environment (VMware, VirtualBox, QEMU, Hyper-V, etc.)
-- Refuses to run dangerous modes on host OS
-- Provides clear error messages
+### Ollama (Local)
+- Runs entirely on your machine
+- No API key or internet needed
+- Requires Ollama installation
+- Default model: llava
 
-## 📁 File Structure
+### OpenRouter
+- Access to multiple models
+- Pay-per-use pricing
+- Flexible model selection
+- Good for testing different models
+
+## Security Features
+
+The built-in security system protects against:
+
+- **Harmful actions**: System deletion, process termination, malware
+- **Financial operations**: Banking, payments, cryptocurrency
+- **System commands**: Shell access, admin operations (in NORMAL mode)
+- **Self-protection**: Cannot modify own files
+- **VM detection**: Enforces VM requirement for dangerous modes
+
+All logs are auto-sanitized to hide sensitive data like API keys, passwords, and personal information.
+
+## File Structure
 
 ```
 Bridge/
-├── curios_agent.py        # Main application (DO NOT EDIT)
-├── requirements.txt       # Python dependencies
-├── curios_config.json     # Configuration (auto-generated)
-├── agent_system.log       # Activity logs (auto-generated)
-├── README.md             # This file
-├── EULA.md               # License agreement
-├── LEGAL_NOTICE.md       # Legal warnings
-└── .gitignore            # Git ignore rules
+├── curios_agent.py          # Main application
+├── requirements.txt         # Dependencies
+├── README.md                # This file
+├── README_RU.md             # Russian documentation
+├── EULA.md                  # License
+├── LEGAL_NOTICE.md          # Legal information
+├── .gitignore               # Git ignore rules
+├── core/                    # Core modules
+│   ├── security.py          # Security kernel
+│   ├── driver.py            # Automation driver
+│   ├── monitors.py          # Multi-monitor support
+│   ├── ocr.py               # OCR engine
+│   └── cloud_sync.py        # Cloud synchronization
+├── plugins/                 # Plugin system
+│   ├── base_plugin.py       # Base plugin class
+│   ├── plugin_manager.py    # Plugin manager
+│   └── examples/            # Example plugins
+├── macros/                  # Macro system
+│   └── macro_manager.py     # Macro manager
+├── ai_providers/            # AI provider adapters
+│   ├── base_provider.py     # Base provider class
+│   ├── gemini_provider.py   # Google Gemini
+│   ├── openai_provider.py   # OpenAI GPT-4V
+│   ├── claude_provider.py   # Anthropic Claude
+│   ├── ollama_provider.py   # Ollama (local)
+│   └── openrouter_provider.py  # OpenRouter
+└── locales/                 # Translations
+    ├── en.json              # English
+    └── ru.json              # Russian
 ```
 
-## ⚙️ Configuration
+## Troubleshooting
 
-Configuration is stored in `curios_config.json`:
+### "AI provider not available"
+- Check your API key in Settings
+- For Ollama, ensure the service is running: `ollama serve`
+- Check your internet connection (except Ollama)
+
+### "This mode requires VM environment"
+- FAIR_PLAY and CURIOS modes only work in virtual machines
+- Use NORMAL mode on your host machine
+- Install VMware, VirtualBox, or similar VM software
+
+### "Action blocked by security system"
+- The action was flagged as potentially harmful
+- Review what you're trying to do
+- This is a safety feature, not a bug
+
+### Mouse/keyboard not working
+- Grant screen recording permissions (macOS)
+- Enable accessibility permissions
+- Check antivirus isn't blocking the app
+- Try running as administrator (Windows)
+
+### OCR not detecting text
+- Ensure EasyOCR is installed: `pip install easyocr`
+- First run downloads language models (may take time)
+- Text must be clear and readable
+- Try different monitor or screenshot area
+
+## Advanced Usage
+
+### Creating Custom Plugins
+
+See `plugins/examples/example_plugin.py` for a template.
+
+Plugins can:
+- Hook into all actions
+- Modify behavior
+- Add new capabilities
+- Persist state between actions
+
+### Writing Macros
+
+Macros are JSON files with this structure:
 
 ```json
 {
-  "mode": "NORMAL",
-  "language": "en",
-  "api_key": "your_gemini_api_key",
-  "mouse_speed": 0.5,
-  "typing_speed": 0.1,
-  "screenshot_privacy": true,
-  "log_sanitization": true
+  "name": "my_macro",
+  "description": "Does something useful",
+  "created_at": "2026-01-05T12:00:00",
+  "actions": [
+    "move_mouse(100, 200)",
+    "click(button='left')",
+    "type_text('Hello')"
+  ],
+  "version": "2.0"
 }
 ```
 
-### Configuration Options
+### Custom AI Prompts
 
-- `mode`: Operation mode (NORMAL/FAIR_PLAY/CURIOS)
-- `language`: UI language (en/ru)
-- `api_key`: Google Gemini API key
-- `mouse_speed`: Mouse movement duration (0.1-2.0 seconds)
-- `typing_speed`: Typing interval (0.01-0.5 seconds)
-- `screenshot_privacy`: Enable privacy blur (true/false)
-- `log_sanitization`: Enable log sanitization (true/false)
+The system prompt can be customized by editing the AI provider files in `ai_providers/`.
 
-## 🔧 Troubleshooting
+## Contributing
 
-### "Gemini API not initialized"
-**Solution**: Add your API key in Settings tab
+Contributions are welcome! Please:
 
-### "This mode requires VM environment"
-**Solution**: Use NORMAL mode on host OS, or run in VM for other modes
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-### "Action blocked by SecurityKernel"
-**Solution**: The action is blocked for safety. Review security features.
-
-### Mouse/Keyboard not working
-**Solution**: 
-- Check permissions (screen recording, accessibility)
-- Disable pyautogui FAILSAFE (move mouse to corner)
-- Try restarting application
-
-### AI produces wrong actions
-**Solution**:
-- Provide more detailed instructions
-- Use step-by-step approach
-- Check screenshot quality
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read [EULA.md](EULA.md) and [LEGAL_NOTICE.md](LEGAL_NOTICE.md) first.
-
-### Guidelines
-- Maintain security features
-- Add tests for new features
-- Follow code style
-- Update documentation
-
-## 📜 License
+## License
 
 See [EULA.md](EULA.md) for license terms.
 
-## ⚖️ Legal
+## Legal
 
-See [LEGAL_NOTICE.md](LEGAL_NOTICE.md) for legal information and warnings.
+See [LEGAL_NOTICE.md](LEGAL_NOTICE.md) for legal information.
 
-## ⚠️ Disclaimer
-
-This software is provided "as is" without warranty of any kind. The authors and contributors are not responsible for any damage, data loss, or legal consequences resulting from the use of this software.
-
-**Use at your own risk. Always test in a safe environment first.**
-
-## 🆘 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/Fisterovna2/Bridge/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Fisterovna2/Bridge/discussions)
 
-## 🎯 Roadmap
+## Roadmap
 
-- [ ] Plugin system
-- [ ] Multi-monitor support
-- [ ] OCR text detection
-- [ ] Custom action macros
-- [ ] Cloud sync for configurations
-- [ ] Mobile companion app
+- [x] Plugin system
+- [x] Multi-monitor support
+- [x] OCR text detection
+- [x] Custom action macros
+- [x] Cloud sync
+- [x] Multi-AI provider support
+- [ ] Mobile companion app (Coming soon - separate repository)
+- [ ] Web dashboard
+- [ ] Scheduled automation
+- [ ] Action templates library
 
-## 📊 System Requirements
+## System Requirements
 
 ### Minimum
-- CPU: Dual-core 2.0 GHz
-- RAM: 4 GB
-- Disk: 500 MB free space
-- Internet: Required for AI features
+- Python 3.8+
+- 4 GB RAM
+- 500 MB disk space
+- Internet connection (except Ollama)
 
 ### Recommended
-- CPU: Quad-core 2.5 GHz+
-- RAM: 8 GB+
-- Disk: 1 GB free space
-- Internet: Broadband connection
+- Python 3.10+
+- 8 GB RAM
+- 2 GB disk space
+- Broadband internet
 
-## 🏆 Credits
+## Credits
 
-- **AI**: Google Gemini 1.5 Flash
+- **AI Providers**: Google, OpenAI, Anthropic, Ollama, OpenRouter
 - **GUI**: CustomTkinter
 - **Automation**: PyAutoGUI, PyDirectInput
-- **Image**: Pillow
+- **OCR**: EasyOCR
+- **Multi-Monitor**: screeninfo
+- **Image Processing**: Pillow
 
-## 📝 Changelog
+## Changelog
+
+### v2.0 (2026-01-05)
+- Added plugin system with hot reload
+- Added multi-monitor support
+- Added OCR text detection
+- Added macro recording and playback
+- Added cloud synchronization
+- Added multi-AI provider support (OpenAI, Claude, Ollama, OpenRouter)
+- Modularized codebase (core/, plugins/, macros/, ai_providers/)
+- Improved localization system
+- Enhanced security features
+- Updated documentation
 
 ### v1.0 (2026-01-05)
 - Initial release
-- Multi-mode operation (NORMAL/FAIR_PLAY/CURIOS)
-- SecurityKernel with comprehensive protection
-- Privacy features (blur, sanitization)
-- AI-powered automation (Gemini 1.5 Flash)
-- Multi-language support (EN/RU)
-- CustomTkinter GUI
-- Complete documentation
+- Basic automation with Gemini
+- Three operation modes
+- Security kernel
+- Privacy protection
+- English/Russian support
 
 ---
 
-**Built with ❤️ and 🔒 by the Bridge Team**
+Made with care for safety and usability.
