@@ -91,10 +91,16 @@ class SecurityKernel:
         # 2. Check MAC address prefixes (VM vendors)
         vm_macs = ['00:0c:29', '00:50:56', '08:00:27', '52:54:00']
         try:
-            import uuid
-            mac = ':'.join(['{:02x}'.format((uuid.getnode() >> i) & 0xff) for i in range(0, 48, 8)][::-1])
-            if any(mac.lower().startswith(prefix) for prefix in vm_macs):
-                indicators.append(f"MAC: {mac[:8]}")
+            import psutil
+            # Get all network interfaces
+            addrs = psutil.net_if_addrs()
+            for interface, addr_list in addrs.items():
+                for addr in addr_list:
+                    if addr.family == psutil.AF_LINK:  # MAC address
+                        mac = addr.address.lower()
+                        if any(mac.startswith(prefix) for prefix in vm_macs):
+                            indicators.append(f"MAC: {mac[:8]}")
+                            break
         except:
             pass
         

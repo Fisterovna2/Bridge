@@ -23,10 +23,10 @@ logger = logging.getLogger(__name__)
 
 # Ollama models configuration
 OLLAMA_MODELS = {
-    "vision": "llava",              # Видит экран
-    "smart": "llama3",              # Умная модель
-    "uncensored": "dolphin-mixtral",  # Для CURIOS режима, без ограничений
-    "fast": "phi3"                  # Быстрая
+    "vision": "llava",              # Vision model - can see screen
+    "smart": "llama3",              # Smart model for complex tasks
+    "uncensored": "dolphin-mixtral",  # For CURIOS mode, without restrictions
+    "fast": "phi3"                  # Fast model for quick tasks
 }
 
 

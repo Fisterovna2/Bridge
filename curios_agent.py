@@ -1239,8 +1239,9 @@ class CuriosAgentGUI:
             event.set()
         
         self.root.after(0, show_dialog)
-        event.wait()
-        return result[0]
+        # Wait with timeout to prevent deadlock
+        event.wait(timeout=30)
+        return result[0] if result[0] is not None else False
     
     def _show_error(self, message: str):
         """Show error message"""
