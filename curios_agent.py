@@ -1306,39 +1306,58 @@ class CuriosAgentGUI:
             fg_color=UI_COLORS["success"],
             hover_color="#059669"
         ).pack(pady=20)
-        self.api_key_entry.insert(0, self.config.get("api_key", ""))
-        
-        # Save button
-        ctk.CTkButton(
-            self.tab_settings, text=self.t["save_settings"],
-            command=self._on_save_settings,
-            font=("Arial", 14, "bold"),
-            height=40
-        ).pack(pady=20)
     
     def _setup_logs_tab(self):
-        """Setup logs tab"""
+        """Setup logs tab with modern UI"""
+        # Header frame
+        header_frame = ctk.CTkFrame(self.tab_logs, fg_color=UI_COLORS["card"])
+        header_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(
+            header_frame,
+            text=self.t["logs"],
+            font=("Arial", 14, "bold"),
+            text_color=UI_COLORS["text"]
+        ).pack(side="left", padx=15, pady=10)
+        
         # Clear button
         ctk.CTkButton(
-            self.tab_logs, text=self.t["clear_logs"],
+            header_frame,
+            text=self.t["clear_logs"],
             command=self._on_clear_logs,
-            height=30
-        ).pack(pady=5)
+            height=35,
+            width=120,
+            fg_color=UI_COLORS["danger"],
+            hover_color="#dc2626"
+        ).pack(side="right", padx=15, pady=10)
         
-        # Log display
-        self.log_text = ctk.CTkTextbox(self.tab_logs)
-        self.log_text.pack(fill="both", expand=True, padx=10, pady=5)
+        # Log display with better styling
+        log_frame = ctk.CTkFrame(self.tab_logs, fg_color=UI_COLORS["card"])
+        log_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        self.log_text = ctk.CTkTextbox(
+            log_frame,
+            font=("Consolas", 10),
+            fg_color=UI_COLORS["background"],
+            border_width=0
+        )
+        self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Load logs
         self._load_logs()
     
     def _setup_about_tab(self):
-        """Setup about tab"""
+        """Setup about tab with modern UI"""
+        about_frame = ctk.CTkFrame(self.tab_about, fg_color=UI_COLORS["card"])
+        about_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
         ctk.CTkLabel(
-            self.tab_about, text=self.t["about_text"],
+            about_frame,
+            text=self.t["about_text"],
             font=("Arial", 12),
-            justify="left"
-        ).pack(pady=20, padx=20)
+            justify="left",
+            text_color=UI_COLORS["text"]
+        ).pack(pady=30, padx=30)
     
     def _on_execute(self):
         """Handle execute button"""
@@ -1346,18 +1365,27 @@ class CuriosAgentGUI:
         if not instruction:
             return
         
-        # Check API key
-        if not self.config.get("api_key"):
+        # Check API key based on provider
+        provider = self.config.get("ai_provider", "gemini")
+        api_key_map = {
+            "gemini": self.config.get("gemini_api_key", "") or self.config.get("api_key", ""),
+            "openai": self.config.get("openai_api_key", ""),
+            "claude": self.config.get("claude_api_key", ""),
+            "ollama": "local"  # Ollama doesn't need API key
+        }
+        
+        if provider != "ollama" and not api_key_map.get(provider):
             self._show_error(self.t["api_key_required"])
             return
         
-        # Get mode
-        mode = OperationMode(self.mode_var.get())
+        # Get mode from quick settings
+        mode = OperationMode(self.mode_quick_var.get())
         
         # Update UI
         self.execute_btn.configure(state="disabled")
         self.stop_btn.configure(state="normal")
         self.update_status(self.t["executing"])
+        self.status_label.configure(text_color=UI_COLORS["warning"])
         
         # Execute in thread
         def execute_thread():
@@ -1376,12 +1404,14 @@ class CuriosAgentGUI:
         """Handle stop button"""
         self.agent.stop()
         self.update_status(self.t["stopped"])
+        self.status_label.configure(text_color=UI_COLORS["danger"])
     
     def _execution_finished(self):
         """Called when execution finishes"""
         self.execute_btn.configure(state="normal")
         self.stop_btn.configure(state="disabled")
         self.update_status(self.t["idle"])
+        self.status_label.configure(text_color=UI_COLORS["success"])
         self._load_logs()
     
     def _on_save_settings(self):
@@ -1397,13 +1427,38 @@ class CuriosAgentGUI:
                     self._show_error(self.t["eula_required"])
                     return
         
+        # Save all settings
         self.config.set("mode", self.mode_var.get())
         self.config.set("language", self.lang_var.get())
-        self.config.set("api_key", self.api_key_entry.get())
+        
+        # Save AI provider settings
+        self.config.set("ai_provider", self.provider_var.get())
+        self.config.set("ai_model", self.model_var.get())
+        
+        # Save API keys
+        self.config.set("gemini_api_key", self.gemini_key_entry.get())
+        self.config.set("openai_api_key", self.openai_key_entry.get())
+        self.config.set("claude_api_key", self.claude_key_entry.get())
+        self.config.set("ollama_url", self.ollama_url_entry.get())
+        
+        # Legacy API key (for backwards compatibility)
+        self.config.set("api_key", self.gemini_key_entry.get())
+        
+        # Save monitor setting if available
+        if self.agent.monitor_manager and hasattr(self, 'monitor_var'):
+            monitor_name = self.monitor_var.get()
+            # Extract monitor index from name
+            monitor_idx = int(monitor_name.split()[1].replace(":", "")) - 1
+            self.config.set("selected_monitor", monitor_idx)
+            self.agent.monitor_manager.select_monitor(monitor_idx)
         
         if self.config.save():
-            # Reinitialize agent with new API key
-            self.agent._init_gemini()
+            # Reinitialize AI provider with new settings
+            self.agent._init_ai_provider()
+            
+            # Update quick settings to match
+            self.mode_quick_var.set(self.mode_var.get())
+            self.ai_quick_var.set(self.provider_var.get().title())
             
             # Update language
             if self.lang_var.get() != self.lang.value:
@@ -1413,6 +1468,75 @@ class CuriosAgentGUI:
                 self._show_info(self.t["settings_saved"])
         
         self._load_logs()
+    
+    def _on_provider_change(self, provider: str):
+        """Handle AI provider change - update model list"""
+        models = AI_MODELS.get(provider, ["default"])
+        self.model_menu.configure(values=models)
+        # Set first model as default
+        if models:
+            self.model_var.set(models[0])
+    
+    def _on_monitor_quick_change(self, monitor_name: str):
+        """Handle monitor quick change"""
+        if self.agent.monitor_manager:
+            # Extract monitor index from name
+            monitor_idx = int(monitor_name.split()[1].replace(":", "")) - 1
+            self.agent.monitor_manager.select_monitor(monitor_idx)
+            self.config.set("selected_monitor", monitor_idx)
+            logger.info(f"Switched to {monitor_name}")
+    
+    def _run_quick_action(self, action: Dict):
+        """Run a quick action"""
+        instruction = action.get("instruction", "")
+        if instruction:
+            # Set instruction in prompt
+            self.prompt_text.delete("1.0", "end")
+            self.prompt_text.insert("1.0", instruction)
+            # Execute immediately
+            self._on_execute()
+    
+    def _add_custom_action(self):
+        """Add a custom quick action"""
+        # Create dialog for custom action
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title(self.t["add_custom"])
+        dialog.geometry("400x200")
+        dialog.grab_set()
+        
+        # Name entry
+        ctk.CTkLabel(dialog, text="Action Name:", font=("Arial", 12)).pack(pady=10)
+        name_entry = ctk.CTkEntry(dialog, width=300)
+        name_entry.pack(pady=5)
+        
+        # Instruction entry
+        ctk.CTkLabel(dialog, text="Instruction:", font=("Arial", 12)).pack(pady=10)
+        instruction_entry = ctk.CTkEntry(dialog, width=300)
+        instruction_entry.pack(pady=5)
+        
+        def save_action():
+            name = name_entry.get().strip()
+            instruction = instruction_entry.get().strip()
+            if name and instruction:
+                # Add to config
+                quick_actions = self.config.get("quick_actions", [])
+                quick_actions.append({
+                    "name_en": name,
+                    "name_ru": name,
+                    "instruction": instruction
+                })
+                self.config.set("quick_actions", quick_actions)
+                self.config.save()
+                dialog.destroy()
+                # Refresh control tab
+                # Note: Would need to recreate control tab to show new action
+        
+        ctk.CTkButton(
+            dialog,
+            text="Save",
+            command=save_action,
+            fg_color=UI_COLORS["success"]
+        ).pack(pady=20)
     
     def _on_clear_logs(self):
         """Clear logs"""
