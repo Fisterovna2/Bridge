@@ -45,7 +45,7 @@ except ImportError:
 # CONSTANTS AND CONFIGURATION
 # ============================================================================
 
-VERSION = "1.0"
+VERSION = "3.0"
 APP_NAME = "Curios Agent"
 CONFIG_FILE = "curios_config.json"
 LOG_FILE = "agent_system.log"
@@ -56,6 +56,23 @@ PROTECTED_FILES = [
     "curios_config.json", 
     "agent_system.log"
 ]
+
+# UI Colors
+COLORS = {
+    "bg_dark": "#0f0f1a",
+    "bg_card": "#1a1a2e", 
+    "bg_input": "#16213e",
+    "accent": "#3b82f6",
+    "accent_hover": "#2563eb",
+    "success": "#10b981",
+    "warning": "#f59e0b",
+    "error": "#ef4444",
+    "text": "#ffffff",
+    "text_dim": "#94a3b8"
+}
+
+# AI Provider priority for fallback
+PROVIDER_PRIORITY = ["ollama", "gemini", "openai", "claude"]
 
 # ============================================================================
 # ENUMS
@@ -78,7 +95,7 @@ class Language(Enum):
 
 TRANSLATIONS = {
     "en": {
-        "app_title": "Curios Agent v1.0",
+        "app_title": "Curios Agent v3.0",
         "control_panel": "Control Panel",
         "settings": "Settings",
         "logs": "Logs",
@@ -89,17 +106,26 @@ TRANSLATIONS = {
         "stop": "Stop",
         "clear_logs": "Clear Logs",
         "mode": "Operation Mode:",
+        "ai_provider": "AI Provider:",
+        "ai_model": "Model:",
+        "monitor": "Monitor:",
         "api_key": "Gemini API Key:",
         "save_settings": "Save Settings",
         "language": "Language:",
         "status": "Status:",
         "idle": "Idle",
+        "ready": "Ready",
         "executing": "Executing...",
         "stopped": "Stopped",
         "about_text": f"{APP_NAME} v{VERSION}\n\nAI-powered desktop automation agent with computer vision.\n\nFeatures:\n- Multi-mode operation\n- Built-in security kernel\n- Privacy protection\n- Vision AI integration\n\nDeveloped with safety in mind.",
         "vm_required": "Error: This mode requires VM environment!",
-        "api_key_required": "Please set Gemini API key in Settings",
+        "api_key_required": "Please set API key in Settings",
         "settings_saved": "Settings saved successfully",
+        "quick_actions": "Quick Actions:",
+        "browser": "Browser",
+        "notepad": "Notepad",
+        "explorer": "Explorer",
+        "screenshot": "Screenshot",
         "normal_mode_desc": "Safe mode with confirmations",
         "fair_play_mode_desc": "Human-like behavior (VM only)",
         "curios_mode_desc": "Sandbox mode (VM only)",
@@ -119,7 +145,7 @@ TRANSLATIONS = {
         "template_category": "Category:",
     },
     "ru": {
-        "app_title": "Curios Agent v1.0",
+        "app_title": "Curios Agent v3.0",
         "control_panel": "Пульт Управления",
         "settings": "Настройки",
         "logs": "Логи",
@@ -130,17 +156,26 @@ TRANSLATIONS = {
         "stop": "Остановить",
         "clear_logs": "Очистить Логи",
         "mode": "Режим Работы:",
+        "ai_provider": "AI Провайдер:",
+        "ai_model": "Модель:",
+        "monitor": "Монитор:",
         "api_key": "Gemini API Ключ:",
         "save_settings": "Сохранить Настройки",
         "language": "Язык:",
         "status": "Статус:",
         "idle": "Ожидание",
+        "ready": "Готов к работе",
         "executing": "Выполняется...",
         "stopped": "Остановлено",
         "about_text": f"{APP_NAME} v{VERSION}\n\nAI-агент для автоматизации задач на ПК с компьютерным зрением.\n\nВозможности:\n- Мультирежимная работа\n- Встроенная система безопасности\n- Защита приватности\n- Интеграция Vision AI\n\nРазработан с акцентом на безопасность.",
         "vm_required": "Ошибка: Этот режим требует VM окружение!",
-        "api_key_required": "Укажите Gemini API ключ в Настройках",
+        "api_key_required": "Укажите API ключ в Настройках",
         "settings_saved": "Настройки успешно сохранены",
+        "quick_actions": "Быстрые действия:",
+        "browser": "Браузер",
+        "notepad": "Блокнот",
+        "explorer": "Проводник",
+        "screenshot": "Скриншот",
         "normal_mode_desc": "Безопасный режим с подтверждениями",
         "fair_play_mode_desc": "Человекоподобное поведение (только VM)",
         "curios_mode_desc": "Песочница без ограничений (только VM)",
@@ -335,15 +370,25 @@ class ConfigManager:
     """Manage application configuration"""
     
     DEFAULT_CONFIG = {
+        "version": "3.0",
+        "language": "en",
         "mode": OperationMode.NORMAL.value,
-        "language": Language.EN.value,
-        "api_key": "",
+        "ai_provider": "ollama",
+        "ai_model": "llava",
+        "monitor": 0,
+        "api_keys": {
+            "gemini": "",
+            "openai": "",
+            "claude": ""
+        },
+        "ollama_host": "http://localhost:11434",
         "mouse_speed": 0.5,
         "typing_speed": 0.1,
         "screenshot_privacy": True,
         "log_sanitization": True,
         "legal_notice_accepted": False,
         "eula_accepted": False,
+        "custom_actions": []
     }
     
     def __init__(self, config_file: str = CONFIG_FILE):
@@ -432,7 +477,7 @@ class CuriosAgent:
         if api_key:
             try:
                 genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                self.model = genai.GenerativeModel('gemini-2.0-flash')
                 logger.info("Gemini API initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini: {e}")

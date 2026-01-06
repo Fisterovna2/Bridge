@@ -66,36 +66,68 @@ class SecurityKernel:
     ]
     
     @staticmethod
-    def is_vm() -> bool:
-        """Detect if running in VM environment"""
-        vm_indicators = [
-            "vmware", "virtualbox", "qemu", "xen", "kvm",
-            "virtual", "hyperv", "parallels"
-        ]
+    def detect_vm() -> Tuple[bool, str]:
+        """
+        Detect if running in VM environment with improved accuracy
+        Returns (is_vm, reason)
+        Requires at least 2 indicators to reduce false positives
+        """
+        indicators = []
         
-        system_info = platform.platform().lower()
-        for indicator in vm_indicators:
-            if indicator in system_info:
-                return True
-        
-        # Check for VM-specific hardware
+        # 1. Check SMBIOS/DMI
         try:
             if platform.system() == "Windows":
                 import subprocess
                 result = subprocess.run(
-                    ["systeminfo"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
+                    ['wmic', 'computersystem', 'get', 'model'],
+                    capture_output=True, text=True, timeout=5
                 )
-                output = result.stdout.lower()
-                for indicator in vm_indicators:
-                    if indicator in output:
-                        return True
+                model = result.stdout.lower()
+                if any(x in model for x in ['virtual', 'vmware', 'virtualbox', 'qemu', 'kvm']):
+                    indicators.append(f"SMBIOS: {model.strip()}")
         except:
             pass
         
-        return False
+        # 2. Check MAC address prefixes (VM vendors)
+        vm_macs = ['00:0c:29', '00:50:56', '08:00:27', '52:54:00']
+        try:
+            import uuid
+            mac = ':'.join(['{:02x}'.format((uuid.getnode() >> i) & 0xff) for i in range(0, 48, 8)][::-1])
+            if any(mac.lower().startswith(prefix) for prefix in vm_macs):
+                indicators.append(f"MAC: {mac[:8]}")
+        except:
+            pass
+        
+        # 3. Check running processes
+        vm_processes = ['vmtoolsd.exe', 'vmwaretray.exe', 'vboxservice.exe', 'vboxtray.exe']
+        try:
+            import psutil
+            running = [p.name().lower() for p in psutil.process_iter(['name'])]
+            found = [p for p in vm_processes if p in running]
+            if found:
+                indicators.append(f"Processes: {', '.join(found)}")
+        except:
+            pass
+        
+        # 4. Check registry (Windows)
+        if platform.system() == "Windows":
+            try:
+                import winreg
+                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\VMware, Inc.\VMware Tools")
+                indicators.append("Registry: VMware Tools")
+                winreg.CloseKey(key)
+            except:
+                pass
+        
+        is_vm = len(indicators) >= 2  # Require at least 2 indicators
+        reason = "; ".join(indicators) if indicators else "No VM indicators"
+        return is_vm, reason
+    
+    @staticmethod
+    def is_vm() -> bool:
+        """Detect if running in VM environment (legacy method)"""
+        is_vm_detected, _ = SecurityKernel.detect_vm()
+        return is_vm_detected
     
     @staticmethod
     def check_action(action: str, mode: OperationMode) -> Tuple[bool, str]:

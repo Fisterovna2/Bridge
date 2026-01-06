@@ -21,15 +21,28 @@ from ai_providers.base_provider import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
+# Ollama models configuration
+OLLAMA_MODELS = {
+    "vision": "llava",              # Видит экран
+    "smart": "llama3",              # Умная модель
+    "uncensored": "dolphin-mixtral",  # Для CURIOS режима, без ограничений
+    "fast": "phi3"                  # Быстрая
+}
+
 
 class OllamaProvider(BaseAIProvider):
     """Ollama local AI provider"""
     
-    def __init__(self, api_key: str = "", base_url: str = "http://localhost:11434"):
+    def __init__(self, api_key: str = "", base_url: str = "http://localhost:11434", model: str = "llava"):
         super().__init__(api_key)
         self.name = "Ollama"
         self.base_url = base_url
-        self.model = "llava"  # Default vision model
+        self.model = model  # Default vision model
+    
+    def set_model(self, model: str):
+        """Set the model to use"""
+        self.model = model
+        logger.info(f"Ollama model set to: {model}")
     
     def initialize(self) -> bool:
         """Initialize Ollama connection"""
