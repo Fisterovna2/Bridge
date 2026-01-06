@@ -121,3 +121,15 @@ Be specific with coordinates and actions."""
     def is_available(self) -> bool:
         """Check if provider is available (no API key needed for local)"""
         return self.initialized
+    
+    def test_connection(self) -> bool:
+        """Test connection to Ollama server"""
+        if not REQUESTS_AVAILABLE:
+            return False
+        
+        try:
+            response = requests.get(f"{self.base_url}/api/tags", timeout=3)
+            return response.status_code == 200
+        except Exception as e:
+            logger.debug(f"Ollama connection test failed: {e}")
+            return False
