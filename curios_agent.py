@@ -27,11 +27,19 @@ try:
     import pydirectinput
     import google.generativeai as genai
     from PIL import Image, ImageFilter, ImageDraw
-    from tkinter import messagebox
+    from tkinter import messagebox, scrolledtext
+    import tkinter as tk
 except ImportError as e:
     print(f"Error: Missing required dependency - {e}")
     print("Please install requirements: pip install -r requirements.txt")
     sys.exit(1)
+
+# Import templates
+try:
+    from templates import TemplateManager
+except ImportError:
+    print("Warning: Templates module not found")
+    TemplateManager = None
 
 # ============================================================================
 # CONSTANTS AND CONFIGURATION
@@ -75,6 +83,7 @@ TRANSLATIONS = {
         "settings": "Settings",
         "logs": "Logs",
         "about": "About",
+        "templates": "Templates",
         "prompt": "Enter your instruction:",
         "execute": "Execute",
         "stop": "Stop",
@@ -98,6 +107,16 @@ TRANSLATIONS = {
         "self_protection": "Cannot modify protected files",
         "confirm_action": "Confirm Action",
         "confirm_message": "Allow this action?",
+        "legal_notice_title": "Legal Notice",
+        "legal_notice_accept": "I have read and agree",
+        "legal_notice_decline": "Decline",
+        "eula_title": "End User License Agreement",
+        "eula_accept": "I accept the EULA",
+        "eula_decline": "Decline",
+        "eula_required": "You must accept the EULA to use FAIR_PLAY or CURIOS modes",
+        "select_template": "Select a template to run:",
+        "run_template": "Run Template",
+        "template_category": "Category:",
     },
     "ru": {
         "app_title": "Curios Agent v1.0",
@@ -105,6 +124,7 @@ TRANSLATIONS = {
         "settings": "Настройки",
         "logs": "Логи",
         "about": "О Программе",
+        "templates": "Шаблоны",
         "prompt": "Введите инструкцию:",
         "execute": "Выполнить",
         "stop": "Остановить",
@@ -128,6 +148,16 @@ TRANSLATIONS = {
         "self_protection": "Невозможно изменить защищённые файлы",
         "confirm_action": "Подтверждение Действия",
         "confirm_message": "Разрешить это действие?",
+        "legal_notice_title": "Правовое уведомление",
+        "legal_notice_accept": "Я прочитал и согласен",
+        "legal_notice_decline": "Отклонить",
+        "eula_title": "Лицензионное соглашение",
+        "eula_accept": "Я принимаю EULA",
+        "eula_decline": "Отклонить",
+        "eula_required": "Вы должны принять EULA для использования режимов FAIR_PLAY или CURIOS",
+        "select_template": "Выберите шаблон для запуска:",
+        "run_template": "Запустить шаблон",
+        "template_category": "Категория:",
     }
 }
 
@@ -312,6 +342,8 @@ class ConfigManager:
         "typing_speed": 0.1,
         "screenshot_privacy": True,
         "log_sanitization": True,
+        "legal_notice_accepted": False,
+        "eula_accepted": False,
     }
     
     def __init__(self, config_file: str = CONFIG_FILE):
@@ -644,8 +676,17 @@ class CuriosAgentGUI:
         self.lang = Language(self.config.get("language", "en"))
         self.t = TRANSLATIONS[self.lang.value]
         
+        # Check legal notice acceptance
+        if not self.config.get("legal_notice_accepted", False):
+            if not self._show_legal_notice():
+                # User declined, exit
+                sys.exit(0)
+        
         # Create agent
         self.agent = CuriosAgent(self.config)
+        
+        # Initialize template manager
+        self.template_manager = TemplateManager() if TemplateManager else None
         
         # Create window
         self.root = ctk.CTk()
@@ -669,12 +710,14 @@ class CuriosAgentGUI:
         # Create tabs
         self.tab_control = self.tabview.add(self.t["control_panel"])
         self.tab_settings = self.tabview.add(self.t["settings"])
+        self.tab_templates = self.tabview.add(self.t["templates"])
         self.tab_logs = self.tabview.add(self.t["logs"])
         self.tab_about = self.tabview.add(self.t["about"])
         
         # Setup tabs
         self._setup_control_tab()
         self._setup_settings_tab()
+        self._setup_templates_tab()
         self._setup_logs_tab()
         self._setup_about_tab()
     
@@ -849,6 +892,17 @@ class CuriosAgentGUI:
     
     def _on_save_settings(self):
         """Handle save settings"""
+        # Check if mode is changing to FAIR_PLAY or CURIOS
+        new_mode = self.mode_var.get()
+        if new_mode in [OperationMode.FAIR_PLAY.value, OperationMode.CURIOS.value]:
+            # Check if EULA has been accepted
+            if not self.config.get("eula_accepted", False):
+                if not self._show_eula():
+                    # User declined EULA, revert mode to current
+                    self.mode_var.set(self.config.get("mode"))
+                    self._show_error(self.t["eula_required"])
+                    return
+        
         self.config.set("mode", self.mode_var.get())
         self.config.set("language", self.lang_var.get())
         self.config.set("api_key", self.api_key_entry.get())
@@ -904,6 +958,238 @@ class CuriosAgentGUI:
     def update_status(self, status: str):
         """Update status label"""
         self.status_label.configure(text=status)
+    
+    def _show_legal_notice(self) -> bool:
+        """Show legal notice dialog and get acceptance"""
+        # Create dialog window
+        dialog = ctk.CTkToplevel(None)
+        dialog.title(self.t["legal_notice_title"])
+        dialog.geometry("800x600")
+        dialog.grab_set()
+        
+        accepted = [False]  # Use list to modify in nested function
+        
+        # Read legal notice
+        legal_text = ""
+        try:
+            with open("LEGAL_NOTICE.md", "r", encoding="utf-8") as f:
+                legal_text = f.read()
+        except:
+            legal_text = "LEGAL_NOTICE.md not found"
+        
+        # Text widget
+        text_widget = ctk.CTkTextbox(dialog, width=750, height=480)
+        text_widget.pack(padx=20, pady=20)
+        text_widget.insert("1.0", legal_text)
+        text_widget.configure(state="disabled")
+        
+        # Button frame
+        button_frame = ctk.CTkFrame(dialog)
+        button_frame.pack(pady=10)
+        
+        def on_accept():
+            accepted[0] = True
+            self.config.set("legal_notice_accepted", True)
+            self.config.save()
+            dialog.destroy()
+        
+        def on_decline():
+            accepted[0] = False
+            dialog.destroy()
+        
+        ctk.CTkButton(
+            button_frame,
+            text=self.t["legal_notice_accept"],
+            command=on_accept,
+            width=200,
+            height=40,
+            fg_color="green"
+        ).pack(side="left", padx=10)
+        
+        ctk.CTkButton(
+            button_frame,
+            text=self.t["legal_notice_decline"],
+            command=on_decline,
+            width=200,
+            height=40,
+            fg_color="red"
+        ).pack(side="left", padx=10)
+        
+        # Wait for dialog to close
+        dialog.wait_window()
+        
+        return accepted[0]
+    
+    def _show_eula(self) -> bool:
+        """Show EULA dialog and get acceptance"""
+        # Create dialog window
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title(self.t["eula_title"])
+        dialog.geometry("800x600")
+        dialog.grab_set()
+        
+        accepted = [False]  # Use list to modify in nested function
+        
+        # Read EULA
+        eula_text = ""
+        try:
+            with open("EULA.md", "r", encoding="utf-8") as f:
+                eula_text = f.read()
+        except:
+            eula_text = "EULA.md not found"
+        
+        # Text widget
+        text_widget = ctk.CTkTextbox(dialog, width=750, height=480)
+        text_widget.pack(padx=20, pady=20)
+        text_widget.insert("1.0", eula_text)
+        text_widget.configure(state="disabled")
+        
+        # Button frame
+        button_frame = ctk.CTkFrame(dialog)
+        button_frame.pack(pady=10)
+        
+        def on_accept():
+            accepted[0] = True
+            self.config.set("eula_accepted", True)
+            self.config.save()
+            dialog.destroy()
+        
+        def on_decline():
+            accepted[0] = False
+            dialog.destroy()
+        
+        ctk.CTkButton(
+            button_frame,
+            text=self.t["eula_accept"],
+            command=on_accept,
+            width=200,
+            height=40,
+            fg_color="green"
+        ).pack(side="left", padx=10)
+        
+        ctk.CTkButton(
+            button_frame,
+            text=self.t["eula_decline"],
+            command=on_decline,
+            width=200,
+            height=40,
+            fg_color="red"
+        ).pack(side="left", padx=10)
+        
+        # Wait for dialog to close
+        dialog.wait_window()
+        
+        return accepted[0]
+    
+    def _setup_templates_tab(self):
+        """Setup templates tab"""
+        if not self.template_manager:
+            ctk.CTkLabel(
+                self.tab_templates,
+                text="Templates module not available",
+                font=("Arial", 14)
+            ).pack(pady=20)
+            return
+        
+        # Title
+        ctk.CTkLabel(
+            self.tab_templates,
+            text=self.t["select_template"],
+            font=("Arial", 14, "bold")
+        ).pack(pady=10)
+        
+        # Category filter
+        category_frame = ctk.CTkFrame(self.tab_templates)
+        category_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(
+            category_frame,
+            text=self.t["template_category"],
+            font=("Arial", 12)
+        ).pack(side="left", padx=5)
+        
+        categories = ["all"] + self.template_manager.get_categories()
+        self.template_category_var = ctk.StringVar(value="all")
+        
+        category_menu = ctk.CTkOptionMenu(
+            category_frame,
+            variable=self.template_category_var,
+            values=categories,
+            command=self._on_template_category_change
+        )
+        category_menu.pack(side="left", padx=5)
+        
+        # Templates list
+        self.templates_frame = ctk.CTkScrollableFrame(self.tab_templates, height=400)
+        self.templates_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Load templates
+        self._load_templates_list()
+    
+    def _on_template_category_change(self, category: str):
+        """Handle category filter change"""
+        self._load_templates_list()
+    
+    def _load_templates_list(self):
+        """Load and display templates list"""
+        # Clear existing
+        for widget in self.templates_frame.winfo_children():
+            widget.destroy()
+        
+        # Get filtered templates
+        category = self.template_category_var.get()
+        if category == "all":
+            templates = self.template_manager.get_all_templates()
+        else:
+            templates = self.template_manager.get_templates_by_category(category)
+        
+        # Display templates
+        for template in templates:
+            frame = ctk.CTkFrame(self.templates_frame)
+            frame.pack(fill="x", padx=5, pady=5)
+            
+            # Get localized name and description
+            name_key = f"name_{self.lang.value}"
+            desc_key = f"description_{self.lang.value}"
+            name = template.get(name_key, template.get("name", "Unknown"))
+            description = template.get(desc_key, template.get("description_en", ""))
+            
+            # Name label
+            ctk.CTkLabel(
+                frame,
+                text=name,
+                font=("Arial", 12, "bold")
+            ).pack(side="left", padx=5)
+            
+            # Description label
+            ctk.CTkLabel(
+                frame,
+                text=description,
+                font=("Arial", 10)
+            ).pack(side="left", padx=5)
+            
+            # Run button
+            ctk.CTkButton(
+                frame,
+                text=self.t["run_template"],
+                command=lambda t=template: self._run_template(t),
+                width=120
+            ).pack(side="right", padx=5)
+    
+    def _run_template(self, template: Dict):
+        """Run a template"""
+        instruction = self.template_manager.execute_template(template)
+        
+        # Switch to control tab
+        self.tabview.set(self.t["control_panel"])
+        
+        # Set the instruction
+        self.prompt_text.delete("1.0", "end")
+        self.prompt_text.insert("1.0", instruction)
+        
+        # Execute if API key is set
+        if self.config.get("api_key"):
+            self._on_execute()
     
     def run(self):
         """Run the application"""

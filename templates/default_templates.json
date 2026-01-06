@@ -1,0 +1,113 @@
+{
+  "version": "1.0",
+  "templates": [
+    {
+      "name": "open_browser",
+      "name_en": "Open Browser",
+      "name_ru": "Открыть браузер",
+      "category": "web",
+      "description_en": "Open default web browser",
+      "description_ru": "Открыть браузер по умолчанию",
+      "instruction": "Open the default web browser"
+    },
+    {
+      "name": "open_browser_website",
+      "name_en": "Open Browser and Visit Website",
+      "name_ru": "Открыть браузер и перейти на сайт",
+      "category": "web",
+      "description_en": "Open browser and navigate to a website",
+      "description_ru": "Открыть браузер и перейти на веб-сайт",
+      "instruction": "Open browser and go to google.com"
+    },
+    {
+      "name": "take_screenshot",
+      "name_en": "Take Screenshot",
+      "name_ru": "Сделать скриншот",
+      "category": "utility",
+      "description_en": "Take a screenshot and save it",
+      "description_ru": "Сделать скриншот и сохранить",
+      "instruction": "Take a screenshot of the current screen"
+    },
+    {
+      "name": "open_notepad",
+      "name_en": "Open Notepad",
+      "name_ru": "Открыть блокнот",
+      "category": "apps",
+      "description_en": "Open Notepad application",
+      "description_ru": "Открыть приложение Блокнот",
+      "instruction": "Open Notepad"
+    },
+    {
+      "name": "open_calculator",
+      "name_en": "Open Calculator",
+      "name_ru": "Открыть калькулятор",
+      "category": "apps",
+      "description_en": "Open Calculator application",
+      "description_ru": "Открыть приложение Калькулятор",
+      "instruction": "Open Calculator"
+    },
+    {
+      "name": "empty_recycle_bin",
+      "name_en": "Empty Recycle Bin",
+      "name_ru": "Очистить корзину",
+      "category": "system",
+      "description_en": "Empty the Recycle Bin",
+      "description_ru": "Очистить корзину Windows",
+      "instruction": "Empty the Recycle Bin"
+    },
+    {
+      "name": "open_file_explorer",
+      "name_en": "Open File Explorer",
+      "name_ru": "Открыть проводник",
+      "category": "apps",
+      "description_en": "Open Windows File Explorer",
+      "description_ru": "Открыть проводник Windows",
+      "instruction": "Open File Explorer"
+    },
+    {
+      "name": "click_start_button",
+      "name_en": "Click Start Button",
+      "name_ru": "Нажать кнопку Пуск",
+      "category": "system",
+      "description_en": "Click the Windows Start button",
+      "description_ru": "Нажать кнопку Пуск Windows",
+      "instruction": "Click the Start button"
+    },
+    {
+      "name": "minimize_all_windows",
+      "name_en": "Minimize All Windows",
+      "name_ru": "Свернуть все окна",
+      "category": "system",
+      "description_en": "Minimize all open windows (Win+D)",
+      "description_ru": "Свернуть все открытые окна (Win+D)",
+      "instruction": "Press Windows key + D to minimize all windows"
+    },
+    {
+      "name": "open_task_manager",
+      "name_en": "Open Task Manager",
+      "name_ru": "Открыть диспетчер задач",
+      "category": "system",
+      "description_en": "Open Windows Task Manager",
+      "description_ru": "Открыть диспетчер задач Windows",
+      "instruction": "Press Ctrl+Shift+Esc to open Task Manager"
+    },
+    {
+      "name": "type_hello_world",
+      "name_en": "Type 'Hello World'",
+      "name_ru": "Написать 'Hello World'",
+      "category": "demo",
+      "description_en": "Type 'Hello World' text",
+      "description_ru": "Ввести текст 'Hello World'",
+      "instruction": "Type 'Hello World'"
+    },
+    {
+      "name": "search_on_desktop",
+      "name_en": "Search on Desktop",
+      "name_ru": "Поиск на рабочем столе",
+      "category": "system",
+      "description_en": "Open Windows search",
+      "description_ru": "Открыть поиск Windows",
+      "instruction": "Press Windows key and open search"
+    }
+  ]
+}
