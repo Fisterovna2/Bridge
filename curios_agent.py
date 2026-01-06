@@ -45,7 +45,7 @@ except ImportError:
 # CONSTANTS AND CONFIGURATION
 # ============================================================================
 
-VERSION = "1.0"
+VERSION = "3.0"
 APP_NAME = "Curios Agent"
 CONFIG_FILE = "curios_config.json"
 LOG_FILE = "agent_system.log"
@@ -56,6 +56,23 @@ PROTECTED_FILES = [
     "curios_config.json", 
     "agent_system.log"
 ]
+
+# UI Colors
+COLORS = {
+    "bg_dark": "#0f0f1a",
+    "bg_card": "#1a1a2e", 
+    "bg_input": "#16213e",
+    "accent": "#3b82f6",
+    "accent_hover": "#2563eb",
+    "success": "#10b981",
+    "warning": "#f59e0b",
+    "error": "#ef4444",
+    "text": "#ffffff",
+    "text_dim": "#94a3b8"
+}
+
+# AI Provider priority for fallback
+PROVIDER_PRIORITY = ["ollama", "gemini", "openai", "claude"]
 
 # ============================================================================
 # ENUMS
@@ -78,7 +95,7 @@ class Language(Enum):
 
 TRANSLATIONS = {
     "en": {
-        "app_title": "Curios Agent v1.0",
+        "app_title": "Curios Agent v3.0",
         "control_panel": "Control Panel",
         "settings": "Settings",
         "logs": "Logs",
@@ -89,17 +106,26 @@ TRANSLATIONS = {
         "stop": "Stop",
         "clear_logs": "Clear Logs",
         "mode": "Operation Mode:",
+        "ai_provider": "AI Provider:",
+        "ai_model": "Model:",
+        "monitor": "Monitor:",
         "api_key": "Gemini API Key:",
         "save_settings": "Save Settings",
         "language": "Language:",
         "status": "Status:",
         "idle": "Idle",
+        "ready": "Ready",
         "executing": "Executing...",
         "stopped": "Stopped",
         "about_text": f"{APP_NAME} v{VERSION}\n\nAI-powered desktop automation agent with computer vision.\n\nFeatures:\n- Multi-mode operation\n- Built-in security kernel\n- Privacy protection\n- Vision AI integration\n\nDeveloped with safety in mind.",
         "vm_required": "Error: This mode requires VM environment!",
-        "api_key_required": "Please set Gemini API key in Settings",
+        "api_key_required": "Please set API key in Settings",
         "settings_saved": "Settings saved successfully",
+        "quick_actions": "Quick Actions:",
+        "browser": "Browser",
+        "notepad": "Notepad",
+        "explorer": "Explorer",
+        "screenshot": "Screenshot",
         "normal_mode_desc": "Safe mode with confirmations",
         "fair_play_mode_desc": "Human-like behavior (VM only)",
         "curios_mode_desc": "Sandbox mode (VM only)",
@@ -119,7 +145,7 @@ TRANSLATIONS = {
         "template_category": "Category:",
     },
     "ru": {
-        "app_title": "Curios Agent v1.0",
+        "app_title": "Curios Agent v3.0",
         "control_panel": "Пульт Управления",
         "settings": "Настройки",
         "logs": "Логи",
@@ -130,17 +156,26 @@ TRANSLATIONS = {
         "stop": "Остановить",
         "clear_logs": "Очистить Логи",
         "mode": "Режим Работы:",
+        "ai_provider": "AI Провайдер:",
+        "ai_model": "Модель:",
+        "monitor": "Монитор:",
         "api_key": "Gemini API Ключ:",
         "save_settings": "Сохранить Настройки",
         "language": "Язык:",
         "status": "Статус:",
         "idle": "Ожидание",
+        "ready": "Готов к работе",
         "executing": "Выполняется...",
         "stopped": "Остановлено",
         "about_text": f"{APP_NAME} v{VERSION}\n\nAI-агент для автоматизации задач на ПК с компьютерным зрением.\n\nВозможности:\n- Мультирежимная работа\n- Встроенная система безопасности\n- Защита приватности\n- Интеграция Vision AI\n\nРазработан с акцентом на безопасность.",
         "vm_required": "Ошибка: Этот режим требует VM окружение!",
-        "api_key_required": "Укажите Gemini API ключ в Настройках",
+        "api_key_required": "Укажите API ключ в Настройках",
         "settings_saved": "Настройки успешно сохранены",
+        "quick_actions": "Быстрые действия:",
+        "browser": "Браузер",
+        "notepad": "Блокнот",
+        "explorer": "Проводник",
+        "screenshot": "Скриншот",
         "normal_mode_desc": "Безопасный режим с подтверждениями",
         "fair_play_mode_desc": "Человекоподобное поведение (только VM)",
         "curios_mode_desc": "Песочница без ограничений (только VM)",
@@ -335,15 +370,25 @@ class ConfigManager:
     """Manage application configuration"""
     
     DEFAULT_CONFIG = {
+        "version": "3.0",
+        "language": "en",
         "mode": OperationMode.NORMAL.value,
-        "language": Language.EN.value,
-        "api_key": "",
+        "ai_provider": "ollama",
+        "ai_model": "llava",
+        "monitor": 0,
+        "api_keys": {
+            "gemini": "",
+            "openai": "",
+            "claude": ""
+        },
+        "ollama_host": "http://localhost:11434",
         "mouse_speed": 0.5,
         "typing_speed": 0.1,
         "screenshot_privacy": True,
         "log_sanitization": True,
         "legal_notice_accepted": False,
         "eula_accepted": False,
+        "custom_actions": []
     }
     
     def __init__(self, config_file: str = CONFIG_FILE):
@@ -423,27 +468,103 @@ class CuriosAgent:
         pyautogui.FAILSAFE = True
         pyautogui.PAUSE = 0.1
         
-        # Initialize Gemini API
-        self._init_gemini()
+        # Initialize monitor manager
+        from core.monitors import MonitorManager
+        self.monitor_manager = MonitorManager()
+        
+        # Initialize AI providers
+        self.providers = {}
+        self._init_providers()
+        
+        # Set current provider and model
+        self.current_provider = config.get("ai_provider", "ollama")
+        self.current_model = config.get("ai_model", "llava")
     
-    def _init_gemini(self):
-        """Initialize Gemini API"""
-        api_key = self.config.get("api_key", "")
-        if api_key:
-            try:
-                genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
-                logger.info("Gemini API initialized")
-            except Exception as e:
-                logger.error(f"Failed to initialize Gemini: {e}")
-                self.model = None
-        else:
-            self.model = None
+    def _init_providers(self):
+        """Initialize all available AI providers"""
+        # Import AI providers
+        from ai_providers.ollama_provider import OllamaProvider
+        from ai_providers.gemini_provider import GeminiProvider
+        
+        # Initialize Ollama
+        try:
+            ollama_host = self.config.get("ollama_host", "http://localhost:11434")
+            ollama_model = self.config.get("ai_model", "llava")
+            ollama = OllamaProvider(base_url=ollama_host, model=ollama_model)
+            if ollama.initialize():
+                self.providers["ollama"] = ollama
+                logger.info("Ollama provider initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Ollama: {e}")
+        
+        # Initialize Gemini
+        try:
+            api_keys = self.config.get("api_keys", {})
+            gemini_key = api_keys.get("gemini", "") or self.config.get("api_key", "")
+            if gemini_key:
+                gemini = GeminiProvider(api_key=gemini_key)
+                if gemini.initialize():
+                    self.providers["gemini"] = gemini
+                    logger.info("Gemini provider initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Gemini: {e}")
+        
+        # Initialize OpenAI (if available)
+        try:
+            from ai_providers.openai_provider import OpenAIProvider
+            api_keys = self.config.get("api_keys", {})
+            openai_key = api_keys.get("openai", "")
+            if openai_key:
+                openai = OpenAIProvider(api_key=openai_key)
+                if openai.initialize():
+                    self.providers["openai"] = openai
+                    logger.info("OpenAI provider initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize OpenAI: {e}")
+        
+        # Initialize Claude (if available)
+        try:
+            from ai_providers.claude_provider import ClaudeProvider
+            api_keys = self.config.get("api_keys", {})
+            claude_key = api_keys.get("claude", "")
+            if claude_key:
+                claude = ClaudeProvider(api_key=claude_key)
+                if claude.initialize():
+                    self.providers["claude"] = claude
+                    logger.info("Claude provider initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Claude: {e}")
+    
+    def set_provider(self, provider_name: str) -> bool:
+        """Set current AI provider"""
+        if provider_name in self.providers:
+            self.current_provider = provider_name
+            logger.info(f"Switched to {provider_name} provider")
+            return True
+        return False
+    
+    def set_model(self, model: str):
+        """Set model for current provider"""
+        self.current_model = model
+        provider = self.providers.get(self.current_provider)
+        if provider and hasattr(provider, 'set_model'):
+            provider.set_model(model)
+            logger.info(f"Model set to: {model}")
+    
+    def get_available_providers(self) -> List[str]:
+        """Get list of available providers"""
+        return list(self.providers.keys())
     
     def take_screenshot(self) -> Optional[Image.Image]:
         """Take screenshot with privacy filter"""
         try:
-            screenshot = pyautogui.screenshot()
+            # Use monitor manager if available
+            monitor_id = self.config.get("monitor", 0)
+            screenshot = self.monitor_manager.take_screenshot(monitor_id=monitor_id)
+            
+            if not screenshot:
+                # Fallback to pyautogui
+                screenshot = pyautogui.screenshot()
             
             # Apply privacy filter if enabled
             if self.config.get("screenshot_privacy", True):
@@ -455,41 +576,45 @@ class CuriosAgent:
             return None
     
     def analyze_screen(self, instruction: str) -> Optional[str]:
-        """Analyze screen with Vision AI"""
-        if not self.model:
-            logger.error("Gemini API not initialized")
+        """Analyze screen with Vision AI using fallback system"""
+        return self.analyze_with_fallback(instruction)
+    
+    def analyze_with_fallback(self, instruction: str) -> Optional[str]:
+        """Analyze screen with automatic fallback between providers"""
+        screenshot = self.take_screenshot()
+        if not screenshot:
+            logger.error("Failed to take screenshot")
             return None
         
-        try:
-            screenshot = self.take_screenshot()
-            if not screenshot:
-                return None
+        # Try current provider first
+        if self.current_provider in self.providers:
+            provider = self.providers[self.current_provider]
+            if provider.is_available():
+                try:
+                    logger.info(f"Using {self.current_provider} provider")
+                    result = provider.analyze_screen(screenshot, instruction)
+                    if result:
+                        return result
+                except Exception as e:
+                    logger.warning(f"{self.current_provider} failed: {e}")
+        
+        # Fallback to other providers
+        for provider_name in PROVIDER_PRIORITY:
+            if provider_name == self.current_provider:
+                continue  # Already tried
             
-            # Create prompt
-            prompt = f"""You are a desktop automation assistant. 
-Analyze the screenshot and provide step-by-step instructions to accomplish this task:
-{instruction}
-
-Respond with clear, executable steps using these actions:
-- move_mouse(x, y)
-- click(button='left/right/middle')
-- double_click()
-- drag(x1, y1, x2, y2)
-- type_text("text")
-- press_key("key")
-- hotkey("ctrl", "c")
-- scroll(clicks)
-- wait(seconds)
-
-Be specific with coordinates and actions."""
-            
-            # Generate response
-            response = self.model.generate_content([prompt, screenshot])
-            return response.text
-            
-        except Exception as e:
-            logger.error(f"Failed to analyze screen: {e}")
-            return None
+            provider = self.providers.get(provider_name)
+            if provider and provider.is_available():
+                try:
+                    logger.info(f"Falling back to {provider_name} provider")
+                    result = provider.analyze_screen(screenshot, instruction)
+                    if result:
+                        return result
+                except Exception as e:
+                    logger.warning(f"{provider_name} failed: {e}")
+        
+        logger.error("All AI providers failed")
+        return None
     
     def execute_action(self, action: str, mode: OperationMode) -> bool:
         """Execute a single action"""
@@ -723,46 +848,173 @@ class CuriosAgentGUI:
     
     def _setup_control_tab(self):
         """Setup control panel tab"""
-        # Status
-        status_frame = ctk.CTkFrame(self.tab_control)
-        status_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(status_frame, text=self.t["status"], 
-                    font=("Arial", 12, "bold")).pack(side="left", padx=5)
-        
-        self.status_label = ctk.CTkLabel(status_frame, text=self.t["idle"],
-                                        font=("Arial", 12))
-        self.status_label.pack(side="left", padx=5)
-        
-        # Prompt
+        # Prompt input
         ctk.CTkLabel(self.tab_control, text=self.t["prompt"],
-                    font=("Arial", 14)).pack(pady=10)
+                    font=("Arial", 14)).pack(pady=(10, 5))
         
-        self.prompt_text = ctk.CTkTextbox(self.tab_control, height=150)
+        self.prompt_text = ctk.CTkTextbox(self.tab_control, height=100)
         self.prompt_text.pack(fill="x", padx=10, pady=5)
         
-        # Buttons
-        button_frame = ctk.CTkFrame(self.tab_control)
+        # Execute and Stop buttons
+        button_frame = ctk.CTkFrame(self.tab_control, fg_color="transparent")
         button_frame.pack(fill="x", padx=10, pady=10)
         
         self.execute_btn = ctk.CTkButton(
-            button_frame, text=self.t["execute"],
+            button_frame, text=f"▶ {self.t['execute']}",
             command=self._on_execute,
             font=("Arial", 14, "bold"),
-            height=40
+            height=40,
+            fg_color=COLORS["accent"],
+            hover_color=COLORS["accent_hover"]
         )
         self.execute_btn.pack(side="left", expand=True, padx=5)
         
         self.stop_btn = ctk.CTkButton(
-            button_frame, text=self.t["stop"],
+            button_frame, text=f"■ {self.t['stop']}",
             command=self._on_stop,
             font=("Arial", 14, "bold"),
             height=40,
-            fg_color="red",
-            hover_color="darkred"
+            fg_color=COLORS["error"],
+            hover_color="#dc2626"
         )
         self.stop_btn.pack(side="left", expand=True, padx=5)
         self.stop_btn.configure(state="disabled")
+        
+        # Status
+        status_frame = ctk.CTkFrame(self.tab_control, fg_color="transparent")
+        status_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(status_frame, text="●", 
+                    font=("Arial", 14),
+                    text_color=COLORS["success"]).pack(side="right", padx=5)
+        
+        self.status_label = ctk.CTkLabel(status_frame, text=self.t["ready"],
+                                        font=("Arial", 12))
+        self.status_label.pack(side="right", padx=5)
+        
+        # Control dropdowns frame
+        controls_frame = ctk.CTkFrame(self.tab_control)
+        controls_frame.pack(fill="x", padx=10, pady=10)
+        
+        # Mode dropdown
+        mode_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
+        mode_frame.pack(side="left", padx=5, pady=5)
+        ctk.CTkLabel(mode_frame, text=self.t["mode"], 
+                    font=("Arial", 10)).pack()
+        self.mode_dropdown = ctk.CTkOptionMenu(
+            mode_frame,
+            values=[OperationMode.NORMAL.value, OperationMode.FAIR_PLAY.value, OperationMode.CURIOS.value],
+            command=self._on_mode_change,
+            width=120
+        )
+        self.mode_dropdown.set(self.config.get("mode", OperationMode.NORMAL.value))
+        self.mode_dropdown.pack()
+        
+        # Monitor dropdown
+        monitor_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
+        monitor_frame.pack(side="left", padx=5, pady=5)
+        ctk.CTkLabel(monitor_frame, text=self.t["monitor"], 
+                    font=("Arial", 10)).pack()
+        monitor_list = self.agent.monitor_manager.get_monitors()
+        monitor_names = [f"Monitor {m['id']}" for m in monitor_list]
+        self.monitor_dropdown = ctk.CTkOptionMenu(
+            monitor_frame,
+            values=monitor_names if monitor_names else ["Monitor 0"],
+            command=self._on_monitor_change,
+            width=120
+        )
+        self.monitor_dropdown.set(f"Monitor {self.config.get('monitor', 0)}")
+        self.monitor_dropdown.pack()
+        
+        # AI Provider dropdown
+        ai_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
+        ai_frame.pack(side="left", padx=5, pady=5)
+        ctk.CTkLabel(ai_frame, text=self.t["ai_provider"], 
+                    font=("Arial", 10)).pack()
+        providers = self.agent.get_available_providers()
+        self.ai_dropdown = ctk.CTkOptionMenu(
+            ai_frame,
+            values=providers if providers else ["ollama"],
+            command=self._on_provider_change,
+            width=120
+        )
+        current_provider = self.config.get("ai_provider", "ollama")
+        if current_provider in providers:
+            self.ai_dropdown.set(current_provider)
+        self.ai_dropdown.pack()
+        
+        # Model dropdown
+        model_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
+        model_frame.pack(side="left", padx=5, pady=5)
+        ctk.CTkLabel(model_frame, text=self.t["ai_model"], 
+                    font=("Arial", 10)).pack()
+        models = ["llava", "llama3", "dolphin-mixtral", "phi3"]
+        self.model_dropdown = ctk.CTkOptionMenu(
+            model_frame,
+            values=models,
+            command=self._on_model_change,
+            width=120
+        )
+        self.model_dropdown.set(self.config.get("ai_model", "llava"))
+        self.model_dropdown.pack()
+        
+        # Quick actions
+        ctk.CTkLabel(self.tab_control, text=self.t["quick_actions"],
+                    font=("Arial", 12, "bold")).pack(pady=(10, 5), padx=10, anchor="w")
+        
+        quick_frame = ctk.CTkFrame(self.tab_control, fg_color="transparent")
+        quick_frame.pack(fill="x", padx=10, pady=5)
+        
+        quick_actions = [
+            ("🌐 " + self.t["browser"], "Open web browser"),
+            ("📝 " + self.t["notepad"], "Open notepad"),
+            ("📁 " + self.t["explorer"], "Open file explorer"),
+            ("📷 " + self.t["screenshot"], "Take screenshot")
+        ]
+        
+        for text, action in quick_actions:
+            btn = ctk.CTkButton(
+                quick_frame, text=text,
+                command=lambda a=action: self._quick_action(a),
+                width=140, height=35
+            )
+            btn.pack(side="left", padx=5)
+    
+    def _on_mode_change(self, mode: str):
+        """Handle mode change"""
+        self.config.set("mode", mode)
+        
+        # Auto-switch to uncensored model in CURIOS mode
+        if mode == OperationMode.CURIOS.value:
+            if "ollama" in self.agent.providers:
+                self.agent.set_model("dolphin-mixtral")
+                self.model_dropdown.set("dolphin-mixtral")
+                logger.info("CURIOS mode: switched to uncensored model")
+    
+    def _on_monitor_change(self, monitor: str):
+        """Handle monitor change"""
+        monitor_id = int(monitor.split()[-1])
+        self.config.set("monitor", monitor_id)
+        self.agent.monitor_manager.select_monitor(monitor_id)
+        logger.info(f"Selected monitor: {monitor_id}")
+    
+    def _on_provider_change(self, provider: str):
+        """Handle AI provider change"""
+        self.config.set("ai_provider", provider)
+        self.agent.set_provider(provider)
+        logger.info(f"Selected AI provider: {provider}")
+    
+    def _on_model_change(self, model: str):
+        """Handle model change"""
+        self.config.set("ai_model", model)
+        self.agent.set_model(model)
+        logger.info(f"Selected model: {model}")
+    
+    def _quick_action(self, action: str):
+        """Handle quick action"""
+        self.prompt_text.delete("1.0", "end")
+        self.prompt_text.insert("1.0", action)
+        self._on_execute()
     
     def _setup_settings_tab(self):
         """Setup settings tab"""
@@ -805,14 +1057,40 @@ class CuriosAgentGUI:
         ctk.CTkRadioButton(lang_frame, text="Русский",
                           variable=self.lang_var, value="ru").pack(side="left", padx=10)
         
-        # API Key
-        ctk.CTkLabel(self.tab_settings, text=self.t["api_key"],
+        # API Keys section
+        ctk.CTkLabel(self.tab_settings, text="API Keys",
                     font=("Arial", 12, "bold")).pack(pady=10)
         
-        self.api_key_entry = ctk.CTkEntry(self.tab_settings, width=400,
-                                         show="*")
-        self.api_key_entry.pack(padx=10, pady=5)
-        self.api_key_entry.insert(0, self.config.get("api_key", ""))
+        # Gemini API Key
+        api_keys = self.config.get("api_keys", {})
+        gemini_key = api_keys.get("gemini", "") or self.config.get("api_key", "")
+        
+        ctk.CTkLabel(self.tab_settings, text="Gemini API Key:",
+                    font=("Arial", 10)).pack(pady=(5, 2), padx=10, anchor="w")
+        self.gemini_key_entry = ctk.CTkEntry(self.tab_settings, width=400, show="*")
+        self.gemini_key_entry.pack(padx=10, pady=2)
+        self.gemini_key_entry.insert(0, gemini_key)
+        
+        # OpenAI API Key
+        ctk.CTkLabel(self.tab_settings, text="OpenAI API Key:",
+                    font=("Arial", 10)).pack(pady=(5, 2), padx=10, anchor="w")
+        self.openai_key_entry = ctk.CTkEntry(self.tab_settings, width=400, show="*")
+        self.openai_key_entry.pack(padx=10, pady=2)
+        self.openai_key_entry.insert(0, api_keys.get("openai", ""))
+        
+        # Claude API Key
+        ctk.CTkLabel(self.tab_settings, text="Claude API Key:",
+                    font=("Arial", 10)).pack(pady=(5, 2), padx=10, anchor="w")
+        self.claude_key_entry = ctk.CTkEntry(self.tab_settings, width=400, show="*")
+        self.claude_key_entry.pack(padx=10, pady=2)
+        self.claude_key_entry.insert(0, api_keys.get("claude", ""))
+        
+        # Ollama host
+        ctk.CTkLabel(self.tab_settings, text="Ollama Host:",
+                    font=("Arial", 10)).pack(pady=(5, 2), padx=10, anchor="w")
+        self.ollama_host_entry = ctk.CTkEntry(self.tab_settings, width=400)
+        self.ollama_host_entry.pack(padx=10, pady=2)
+        self.ollama_host_entry.insert(0, self.config.get("ollama_host", "http://localhost:11434"))
         
         # Save button
         ctk.CTkButton(
@@ -852,13 +1130,13 @@ class CuriosAgentGUI:
         if not instruction:
             return
         
-        # Check API key
-        if not self.config.get("api_key"):
+        # Check if any AI provider is available
+        if not self.agent.get_available_providers():
             self._show_error(self.t["api_key_required"])
             return
         
-        # Get mode
-        mode = OperationMode(self.mode_var.get())
+        # Get mode from dropdown
+        mode = OperationMode(self.mode_dropdown.get())
         
         # Update UI
         self.execute_btn.configure(state="disabled")
@@ -905,11 +1183,19 @@ class CuriosAgentGUI:
         
         self.config.set("mode", self.mode_var.get())
         self.config.set("language", self.lang_var.get())
-        self.config.set("api_key", self.api_key_entry.get())
+        
+        # Save API keys
+        api_keys = {
+            "gemini": self.gemini_key_entry.get(),
+            "openai": self.openai_key_entry.get(),
+            "claude": self.claude_key_entry.get()
+        }
+        self.config.set("api_keys", api_keys)
+        self.config.set("ollama_host", self.ollama_host_entry.get())
         
         if self.config.save():
-            # Reinitialize agent with new API key
-            self.agent._init_gemini()
+            # Reinitialize agent with new settings
+            self.agent._init_providers()
             
             # Update language
             if self.lang_var.get() != self.lang.value:
@@ -941,11 +1227,21 @@ class CuriosAgentGUI:
             logger.error(f"Failed to load logs: {e}")
     
     def _confirm_action(self, action: str) -> bool:
-        """Confirmation dialog for actions in NORMAL mode"""
-        return messagebox.askyesno(
-            self.t["confirm_action"],
-            f"{self.t['confirm_message']}\n\n{action}"
-        )
+        """Confirmation dialog for actions in NORMAL mode with threading fix"""
+        result = [None]
+        event = threading.Event()
+        
+        def show_dialog():
+            result[0] = messagebox.askyesno(
+                self.t["confirm_action"],
+                f"{self.t['confirm_message']}\n\n{action}"
+            )
+            event.set()
+        
+        self.root.after(0, show_dialog)
+        # Wait with timeout to prevent deadlock
+        event.wait(timeout=30)
+        return result[0] if result[0] is not None else False
     
     def _show_error(self, message: str):
         """Show error message"""
