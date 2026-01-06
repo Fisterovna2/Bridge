@@ -9,11 +9,11 @@ from typing import Optional
 from PIL import Image
 
 try:
-    import google.generativeai as genai
+    from google import genai
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    logging.warning("google-generativeai not available")
+    logging.warning("google-genai not available")
 
 from ai_providers.base_provider import BaseAIProvider
 
@@ -26,7 +26,7 @@ class GeminiProvider(BaseAIProvider):
     def __init__(self, api_key: str = ""):
         super().__init__(api_key)
         self.name = "Gemini"
-        self.model = None
+        self.client = None
     
     def initialize(self) -> bool:
         """Initialize Gemini API"""
@@ -39,8 +39,7 @@ class GeminiProvider(BaseAIProvider):
             return False
         
         try:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.client = genai.Client(api_key=self.api_key)
             self.initialized = True
             logger.info("Gemini provider initialized")
             return True
@@ -72,7 +71,10 @@ Respond with clear, executable steps using these actions:
 
 Be specific with coordinates and actions."""
             
-            response = self.model.generate_content([prompt, image])
+            response = self.client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=[prompt, image]
+            )
             return response.text
             
         except Exception as e:

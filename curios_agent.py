@@ -25,7 +25,7 @@ try:
     import customtkinter as ctk
     import pyautogui
     import pydirectinput
-    import google.generativeai as genai
+    from google import genai
     from PIL import Image, ImageFilter, ImageDraw
     from tkinter import messagebox, scrolledtext
     import tkinter as tk
@@ -418,6 +418,7 @@ class CuriosAgent:
         self.config = config
         self.running = False
         self.current_action = None
+        self.client = None
         
         # Configure pyautogui
         pyautogui.FAILSAFE = True
@@ -431,14 +432,13 @@ class CuriosAgent:
         api_key = self.config.get("api_key", "")
         if api_key:
             try:
-                genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                self.client = genai.Client(api_key=api_key)
                 logger.info("Gemini API initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini: {e}")
-                self.model = None
+                self.client = None
         else:
-            self.model = None
+            self.client = None
     
     def take_screenshot(self) -> Optional[Image.Image]:
         """Take screenshot with privacy filter"""
@@ -456,7 +456,7 @@ class CuriosAgent:
     
     def analyze_screen(self, instruction: str) -> Optional[str]:
         """Analyze screen with Vision AI"""
-        if not self.model:
+        if not self.client:
             logger.error("Gemini API not initialized")
             return None
         
@@ -484,7 +484,10 @@ Respond with clear, executable steps using these actions:
 Be specific with coordinates and actions."""
             
             # Generate response
-            response = self.model.generate_content([prompt, screenshot])
+            response = self.client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=[prompt, screenshot]
+            )
             return response.text
             
         except Exception as e:
