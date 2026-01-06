@@ -1,3 +1,7 @@
+**🌐 Language / Язык:** [English](README.md) | [Русский](README_RU.md)
+
+---
+
 # Curios Agent v2.0
 
 AI-powered desktop automation with computer vision.
