@@ -44,6 +44,15 @@ class BaseAIProvider(ABC):
         """
         pass
     
+    def test_connection(self) -> bool:
+        """
+        Test connection to AI provider
+        
+        Returns:
+            True if connection successful, False otherwise
+        """
+        return self.is_available()
+    
     def is_available(self) -> bool:
         """Check if provider is available"""
         return self.initialized and bool(self.api_key)

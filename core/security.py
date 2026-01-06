@@ -9,7 +9,9 @@ import re
 import platform
 import logging
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, Dict, Any
+from pathlib import Path
+import fnmatch
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +29,34 @@ class SecurityKernel:
     Blocks malicious actions, financial operations, system commands, and private data access
     """
     
-    # Protected files that agent cannot modify
-    PROTECTED_FILES = [
+    # Protected paths that agent cannot modify
+    PROTECTED_PATHS = [
         "curios_agent.py",
         "curios_config.json", 
-        "agent_system.log"
+        "agent_system.log",
+        "core/security.py",
+        ".env",
+        "*.key",
+        "*.pem",
+        "*.pfx",
+        "*.p12",
+    ]
+    
+    # Blocked commands (destructive operations)
+    BLOCKED_COMMANDS = [
+        # Destructive file operations
+        "rm -rf", "rmdir /s", "del /f", "format", 
+        "diskpart", "fdisk", "mkfs", "dd if=",
+        
+        # Registry operations
+        "reg delete", "regedit", "reg add",
+        
+        # System operations
+        "shutdown", "restart", "reboot", "taskkill /f",
+        "net user", "net localgroup",
+        
+        # Network operations
+        "netsh", "iptables", "firewall-cmd",
     ]
     
     # Triggers for harmful actions
@@ -40,7 +65,8 @@ class SecurityKernel:
         "shutdown", "reboot", "kill", "pkill", "taskkill",
         "registry", "regedit", "sudo rm", "dd if=/dev/zero",
         "virus", "malware", "ransomware", "exploit", "hack",
-        "ddos", "attack", "destroy", "corrupt", "wipe"
+        "ddos", "attack", "destroy", "corrupt", "wipe",
+        "rm -rf", "rmdir", "deltree", "erase"
     ]
     
     # Triggers for financial operations
@@ -70,70 +96,70 @@ class SecurityKernel:
         """
         Detect if running in VM environment with improved accuracy
         Returns (is_vm, reason)
-        Requires at least 2 indicators to reduce false positives
+        
+        Uses the dedicated vm_detection module
         """
-        indicators = []
-        
-        # 1. Check SMBIOS/DMI
         try:
-            if platform.system() == "Windows":
-                import subprocess
-                result = subprocess.run(
-                    ['wmic', 'computersystem', 'get', 'model'],
-                    capture_output=True, text=True, timeout=5
-                )
-                model = result.stdout.lower()
-                if any(x in model for x in ['virtual', 'vmware', 'virtualbox', 'qemu', 'kvm']):
-                    indicators.append(f"SMBIOS: {model.strip()}")
-        except:
-            pass
-        
-        # 2. Check MAC address prefixes (VM vendors)
-        vm_macs = ['00:0c:29', '00:50:56', '08:00:27', '52:54:00']
-        try:
-            import psutil
-            # Get all network interfaces
-            addrs = psutil.net_if_addrs()
-            for interface, addr_list in addrs.items():
-                for addr in addr_list:
-                    if addr.family == psutil.AF_LINK:  # MAC address
-                        mac = addr.address.lower()
-                        if any(mac.startswith(prefix) for prefix in vm_macs):
-                            indicators.append(f"MAC: {mac[:8]}")
-                            break
-        except:
-            pass
-        
-        # 3. Check running processes
-        vm_processes = ['vmtoolsd.exe', 'vmwaretray.exe', 'vboxservice.exe', 'vboxtray.exe']
-        try:
-            import psutil
-            running = [p.name().lower() for p in psutil.process_iter(['name'])]
-            found = [p for p in vm_processes if p in running]
-            if found:
-                indicators.append(f"Processes: {', '.join(found)}")
-        except:
-            pass
-        
-        # 4. Check registry (Windows)
-        if platform.system() == "Windows":
-            try:
-                import winreg
-                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\VMware, Inc.\VMware Tools")
-                indicators.append("Registry: VMware Tools")
-                winreg.CloseKey(key)
-            except:
-                pass
-        
-        is_vm = len(indicators) >= 2  # Require at least 2 indicators
-        reason = "; ".join(indicators) if indicators else "No VM indicators"
-        return is_vm, reason
+            from core.vm_detection import detect_vm
+            return detect_vm()
+        except ImportError:
+            logger.warning("vm_detection module not available, using fallback")
+            # Fallback to simple check
+            system_info = platform.platform().lower()
+            vm_indicators = ["vmware", "virtualbox", "qemu", "xen", "kvm", "virtual"]
+            for indicator in vm_indicators:
+                if indicator in system_info:
+                    return True, f"Platform string: {indicator}"
+            return False, "No VM indicators in platform string"
     
     @staticmethod
     def is_vm() -> bool:
         """Detect if running in VM environment (legacy method)"""
         is_vm_detected, _ = SecurityKernel.detect_vm()
         return is_vm_detected
+    
+    @staticmethod
+    def validate_action(action: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Validate an action before execution
+        
+        Args:
+            action: Action dictionary with 'type' and parameters
+        
+        Returns:
+            Tuple of (allowed: bool, reason: str)
+        """
+        action_str = str(action)
+        return SecurityKernel.check_action(action_str, OperationMode.NORMAL)
+    
+    @staticmethod
+    def is_path_protected(path: str) -> bool:
+        """
+        Check if a path is protected
+        
+        Args:
+            path: File or directory path to check
+        
+        Returns:
+            bool: True if protected, False otherwise
+        """
+        path_str = str(path).replace('\\', '/')
+        
+        for protected in SecurityKernel.PROTECTED_PATHS:
+            # Handle wildcards
+            if '*' in protected:
+                if fnmatch.fnmatch(path_str, protected):
+                    return True
+                # Also check basename for patterns like *.key
+                if fnmatch.fnmatch(Path(path_str).name, protected):
+                    return True
+            else:
+                # Direct match or contains
+                protected_normalized = protected.replace('\\', '/')
+                if protected_normalized in path_str or path_str.endswith(protected_normalized):
+                    return True
+        
+        return False
     
     @staticmethod
     def check_action(action: str, mode: OperationMode) -> Tuple[bool, str]:
@@ -144,10 +170,18 @@ class SecurityKernel:
         action_lower = action.lower()
         
         # Check for protected files (self-protection)
-        for protected_file in SecurityKernel.PROTECTED_FILES:
-            if protected_file.lower() in action_lower:
-                if any(word in action_lower for word in ["edit", "modify", "delete", "change", "write", "update"]):
-                    return False, "Self-protection: Cannot modify protected files"
+        for protected_path in SecurityKernel.PROTECTED_PATHS:
+            if '*' in protected_path:
+                # Skip wildcard patterns in simple string matching
+                continue
+            if protected_path.lower() in action_lower:
+                if any(word in action_lower for word in ["edit", "modify", "delete", "change", "write", "update", "remove"]):
+                    return False, f"Self-protection: Cannot modify protected path: {protected_path}"
+        
+        # Check for blocked commands
+        for blocked_cmd in SecurityKernel.BLOCKED_COMMANDS:
+            if blocked_cmd.lower() in action_lower:
+                return False, f"Blocked dangerous command: {blocked_cmd}"
         
         # Check for harmful actions (all modes)
         for trigger in SecurityKernel.HARM_TRIGGERS:
@@ -174,18 +208,39 @@ class SecurityKernel:
     
     @staticmethod
     def sanitize_log(message: str) -> str:
-        """Sanitize sensitive data from logs"""
-        patterns = [
-            (r'api[_\s-]?key[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'api_key: ***'),
-            (r'password[_\s:-]*["\']?([^\s"\']+)["\']?', 'password: ***'),
-            (r'token[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'token: ***'),
-            (r'secret[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'secret: ***'),
-            (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '***@***.***'),
-            (r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '***-***-****'),
-        ]
+        """
+        Sanitize sensitive data from logs
+        Uses privacy filter if available, otherwise uses internal patterns
+        """
+        try:
+            from core.privacy import sanitize_text
+            return sanitize_text(message)
+        except ImportError:
+            # Fallback to basic patterns
+            patterns = [
+                (r'api[_\s-]?key[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'api_key: ***'),
+                (r'password[_\s:-]*["\']?([^\s"\']+)["\']?', 'password: ***'),
+                (r'token[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'token: ***'),
+                (r'secret[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'secret: ***'),
+                (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '***@***.***'),
+                (r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '***-***-****'),
+            ]
+            
+            sanitized = message
+            for pattern, replacement in patterns:
+                sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+            
+            return sanitized
+    
+    @staticmethod
+    def sanitize_for_log(text: str) -> str:
+        """
+        Alias for sanitize_log for compatibility
         
-        sanitized = message
-        for pattern, replacement in patterns:
-            sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+        Args:
+            text: Text to sanitize
         
-        return sanitized
+        Returns:
+            Sanitized text
+        """
+        return SecurityKernel.sanitize_log(text)

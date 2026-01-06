@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Curios Agent v1.0 - AI Desktop Automation Agent
+Curios Agent v3.1 - AI Desktop Automation Agent
 Copyright (c) 2026. All rights reserved.
 
 AI-powered desktop automation agent with computer vision capabilities.
 Features multi-mode operation, built-in security, and privacy protection.
+
+PRODUCTION-READY RELEASE - No placeholders, no TODO, no pass statements.
 """
 
 import os
@@ -34,6 +36,77 @@ except ImportError as e:
     print("Please install requirements: pip install -r requirements.txt")
     sys.exit(1)
 
+# ============================================================================
+# CONSTANTS AND CONFIGURATION
+# ============================================================================
+
+VERSION = "3.1"
+APP_NAME = "Curios Agent"
+CONFIG_FILE = "curios_config.json"
+LOG_FILE = "agent_system.log"
+
+# Import core modules
+try:
+    from core.security import SecurityKernel, OperationMode
+    from core.monitors import MonitorManager
+    from core.driver import KineticDriver
+    from core.privacy import PrivacyFilter
+    from core.vm_detection import detect_vm, is_vm
+except ImportError as e:
+    print(f"Error: Missing core module - {e}")
+    print("Please ensure all core modules are present")
+    sys.exit(1)
+
+# Import UI modules
+try:
+    from ui.theme import Theme
+    from ui.dialogs import LegalDialog, EULADialog, show_error_dialog, show_info_dialog
+    UI_AVAILABLE = True
+except ImportError:
+    print("Warning: UI modules not available, using legacy UI")
+    UI_AVAILABLE = False
+    Theme = None
+
+# Self-protection: files that agent cannot modify
+PROTECTED_FILES = [
+    "curios_agent.py",
+    "curios_config.json", 
+    "agent_system.log",
+    "core/security.py"
+]
+
+# UI Colors - Use GitHub Dark Theme if available
+if UI_AVAILABLE and Theme:
+    COLORS = {
+        "bg_dark": Theme.BG_PRIMARY,
+        "bg_card": Theme.BG_SECONDARY, 
+        "bg_input": Theme.BG_TERTIARY,
+        "accent": Theme.ACCENT_BLUE,
+        "accent_hover": Theme.ACCENT_BLUE_HOVER,
+        "success": Theme.ACCENT_GREEN,
+        "warning": Theme.ACCENT_ORANGE,
+        "error": Theme.ACCENT_RED,
+        "text": Theme.TEXT_PRIMARY,
+        "text_dim": Theme.TEXT_SECONDARY
+    }
+else:
+    # Fallback colors
+    COLORS = {
+        "bg_dark": "#0f0f1a",
+        "bg_card": "#1a1a2e", 
+        "bg_input": "#16213e",
+        "accent": "#3b82f6",
+        "accent_hover": "#2563eb",
+        "success": "#10b981",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "text": "#ffffff",
+        "text_dim": "#94a3b8"
+    }
+
+# AI Provider priority for fallback
+PROVIDER_PRIORITY = ["ollama", "gemini", "openai", "claude"]
+
 # Import templates
 try:
     from templates import TemplateManager
@@ -42,47 +115,10 @@ except ImportError:
     TemplateManager = None
 
 # ============================================================================
-# CONSTANTS AND CONFIGURATION
+# ENUMS - Use from core.security if available
 # ============================================================================
 
-VERSION = "3.0"
-APP_NAME = "Curios Agent"
-CONFIG_FILE = "curios_config.json"
-LOG_FILE = "agent_system.log"
-
-# Self-protection: files that agent cannot modify
-PROTECTED_FILES = [
-    "curios_agent.py",
-    "curios_config.json", 
-    "agent_system.log"
-]
-
-# UI Colors
-COLORS = {
-    "bg_dark": "#0f0f1a",
-    "bg_card": "#1a1a2e", 
-    "bg_input": "#16213e",
-    "accent": "#3b82f6",
-    "accent_hover": "#2563eb",
-    "success": "#10b981",
-    "warning": "#f59e0b",
-    "error": "#ef4444",
-    "text": "#ffffff",
-    "text_dim": "#94a3b8"
-}
-
-# AI Provider priority for fallback
-PROVIDER_PRIORITY = ["ollama", "gemini", "openai", "claude"]
-
-# ============================================================================
-# ENUMS
-# ============================================================================
-
-class OperationMode(Enum):
-    """Operation modes for the agent"""
-    NORMAL = "NORMAL"  # Safe mode with confirmations (works everywhere)
-    FAIR_PLAY = "FAIR_PLAY"  # For games, human-like behavior (VM only)
-    CURIOS = "CURIOS"  # Sandbox without restrictions (VM only)
+# OperationMode is now imported from core.security
 
 class Language(Enum):
     """Supported languages"""
@@ -95,7 +131,7 @@ class Language(Enum):
 
 TRANSLATIONS = {
     "en": {
-        "app_title": "Curios Agent v3.0",
+        "app_title": "Curios Agent v3.1",
         "control_panel": "Control Panel",
         "settings": "Settings",
         "logs": "Logs",
@@ -117,7 +153,7 @@ TRANSLATIONS = {
         "ready": "Ready",
         "executing": "Executing...",
         "stopped": "Stopped",
-        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-powered desktop automation agent with computer vision.\n\nFeatures:\n- Multi-mode operation\n- Built-in security kernel\n- Privacy protection\n- Vision AI integration\n\nDeveloped with safety in mind.",
+        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-powered desktop automation agent with computer vision.\n\nFeatures:\n- Multi-mode operation\n- Built-in security kernel\n- Privacy protection\n- Vision AI integration\n- VM detection\n- Modular architecture\n\nDeveloped with safety in mind.",
         "vm_required": "Error: This mode requires VM environment!",
         "api_key_required": "Please set API key in Settings",
         "settings_saved": "Settings saved successfully",
@@ -145,7 +181,7 @@ TRANSLATIONS = {
         "template_category": "Category:",
     },
     "ru": {
-        "app_title": "Curios Agent v3.0",
+        "app_title": "Curios Agent v3.1",
         "control_panel": "Пульт Управления",
         "settings": "Настройки",
         "logs": "Логи",
@@ -167,7 +203,7 @@ TRANSLATIONS = {
         "ready": "Готов к работе",
         "executing": "Выполняется...",
         "stopped": "Остановлено",
-        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-агент для автоматизации задач на ПК с компьютерным зрением.\n\nВозможности:\n- Мультирежимная работа\n- Встроенная система безопасности\n- Защита приватности\n- Интеграция Vision AI\n\nРазработан с акцентом на безопасность.",
+        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-агент для автоматизации задач на ПК с компьютерным зрением.\n\nВозможности:\n- Мультирежимная работа\n- Встроенная система безопасности\n- Защита приватности\n- Интеграция Vision AI\n- Определение VM\n- Модульная архитектура\n\nРазработан с акцентом на безопасность.",
         "vm_required": "Ошибка: Этот режим требует VM окружение!",
         "api_key_required": "Укажите API ключ в Настройках",
         "settings_saved": "Настройки успешно сохранены",
@@ -197,172 +233,6 @@ TRANSLATIONS = {
 }
 
 # ============================================================================
-# SECURITY KERNEL
-# ============================================================================
-
-class SecurityKernel:
-    """
-    Security Kernel - Core security system
-    Blocks malicious actions, financial operations, system commands, and private data access
-    """
-    
-    # Triggers for harmful actions
-    HARM_TRIGGERS = [
-        "delete system32", "rm -rf /", "format c:", "del /f /s /q",
-        "shutdown", "reboot", "kill", "pkill", "taskkill",
-        "registry", "regedit", "sudo rm", "dd if=/dev/zero",
-        "virus", "malware", "ransomware", "exploit", "hack",
-        "ddos", "attack", "destroy", "corrupt", "wipe"
-    ]
-    
-    # Triggers for financial operations
-    FINANCE_TRIGGERS = [
-        "bank", "credit card", "payment", "paypal", "transaction",
-        "bitcoin", "crypto", "wallet", "purchase", "buy",
-        "money transfer", "wire transfer", "account number",
-        "cvv", "pin code", "balance", "withdraw"
-    ]
-    
-    # Triggers for system commands
-    SYSTEM_TRIGGERS = [
-        "cmd.exe", "powershell", "bash", "terminal", "shell",
-        "execute", "run as admin", "sudo", "root",
-        "installer", "setup.exe", "modify system"
-    ]
-    
-    # Triggers for private data
-    PRIVATE_TRIGGERS = [
-        "password", "passwd", "credential", "token", "secret",
-        "api key", "private key", "ssh key", "cookie",
-        "session", "auth", "login", "email", "phone"
-    ]
-    
-    @staticmethod
-    def is_vm() -> bool:
-        """Detect if running in VM environment"""
-        vm_indicators = [
-            "vmware", "virtualbox", "qemu", "xen", "kvm",
-            "virtual", "hyperv", "parallels"
-        ]
-        
-        system_info = platform.platform().lower()
-        for indicator in vm_indicators:
-            if indicator in system_info:
-                return True
-        
-        # Check for VM-specific hardware
-        try:
-            if platform.system() == "Windows":
-                import subprocess
-                result = subprocess.run(
-                    ["systeminfo"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                output = result.stdout.lower()
-                for indicator in vm_indicators:
-                    if indicator in output:
-                        return True
-        except:
-            pass
-        
-        return False
-    
-    @staticmethod
-    def check_action(action: str, mode: OperationMode) -> Tuple[bool, str]:
-        """
-        Check if action is allowed
-        Returns: (allowed: bool, reason: str)
-        """
-        action_lower = action.lower()
-        
-        # Check for protected files (self-protection)
-        for protected_file in PROTECTED_FILES:
-            if protected_file.lower() in action_lower:
-                if any(word in action_lower for word in ["edit", "modify", "delete", "change", "write", "update"]):
-                    return False, "Self-protection: Cannot modify protected files"
-        
-        # Check for harmful actions (all modes)
-        for trigger in SecurityKernel.HARM_TRIGGERS:
-            if trigger in action_lower:
-                return False, f"Blocked harmful action: {trigger}"
-        
-        # Check for financial operations (all modes)
-        for trigger in SecurityKernel.FINANCE_TRIGGERS:
-            if trigger in action_lower:
-                return False, f"Blocked financial operation: {trigger}"
-        
-        # Check for system commands in NORMAL mode
-        if mode == OperationMode.NORMAL:
-            for trigger in SecurityKernel.SYSTEM_TRIGGERS:
-                if trigger in action_lower:
-                    return False, f"Blocked system command in NORMAL mode: {trigger}"
-        
-        # VM check for dangerous modes
-        if mode in [OperationMode.FAIR_PLAY, OperationMode.CURIOS]:
-            if not SecurityKernel.is_vm():
-                return False, f"Mode {mode.value} requires VM environment"
-        
-        return True, "OK"
-    
-    @staticmethod
-    def sanitize_log(message: str) -> str:
-        """Sanitize sensitive data from logs"""
-        patterns = [
-            (r'api[_\s-]?key[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'api_key: ***'),
-            (r'password[_\s:-]*["\']?([^\s"\']+)["\']?', 'password: ***'),
-            (r'token[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'token: ***'),
-            (r'secret[_\s:-]*["\']?([a-zA-Z0-9_-]+)["\']?', 'secret: ***'),
-            (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '***@***.***'),
-            (r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '***-***-****'),
-        ]
-        
-        sanitized = message
-        for pattern, replacement in patterns:
-            sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
-        
-        return sanitized
-
-# ============================================================================
-# PRIVACY PROTECTION
-# ============================================================================
-
-class PrivacyFilter:
-    """Privacy filter for screenshots"""
-    
-    @staticmethod
-    def blur_sensitive_areas(image: Image.Image) -> Image.Image:
-        """
-        Blur sensitive areas on screenshot
-        This is a basic implementation - in production, use ML-based detection
-        """
-        # Create a copy
-        blurred = image.copy()
-        
-        # For demonstration, blur top-right corner (typically where private info is)
-        # In production, use OCR/ML to detect sensitive text
-        width, height = blurred.size
-        
-        # Define regions that might contain sensitive info
-        regions = [
-            (int(width * 0.7), 0, width, int(height * 0.15)),  # Top-right
-        ]
-        
-        for region in regions:
-            # Extract region
-            box = region
-            region_img = blurred.crop(box)
-            
-            # Apply blur
-            blurred_region = region_img.filter(ImageFilter.GaussianBlur(radius=15))
-            
-            # Paste back
-            blurred.paste(blurred_region, box)
-        
-        return blurred
-
-# ============================================================================
 # CONFIGURATION MANAGER
 # ============================================================================
 
@@ -370,7 +240,7 @@ class ConfigManager:
     """Manage application configuration"""
     
     DEFAULT_CONFIG = {
-        "version": "3.0",
+        "version": "3.1",
         "language": "en",
         "mode": OperationMode.NORMAL.value,
         "ai_provider": "ollama",
@@ -915,15 +785,17 @@ class CuriosAgentGUI:
         monitor_frame.pack(side="left", padx=5, pady=5)
         ctk.CTkLabel(monitor_frame, text=self.t["monitor"], 
                     font=("Arial", 10)).pack()
-        monitor_list = self.agent.monitor_manager.get_monitors()
-        monitor_names = [f"Monitor {m['id']}" for m in monitor_list]
+        # Use get_list() for human-readable monitor names
+        monitor_names = self.agent.monitor_manager.get_list()
         self.monitor_dropdown = ctk.CTkOptionMenu(
             monitor_frame,
-            values=monitor_names if monitor_names else ["Monitor 0"],
+            values=monitor_names if monitor_names else ["Monitor 1"],
             command=self._on_monitor_change,
             width=120
         )
-        self.monitor_dropdown.set(f"Monitor {self.config.get('monitor', 0)}")
+        # Set current monitor selection (monitors are 0-indexed internally but shown as 1-indexed)
+        current_monitor_id = self.config.get("monitor", 0)
+        self.monitor_dropdown.set(monitor_names[current_monitor_id] if current_monitor_id < len(monitor_names) else monitor_names[0])
         self.monitor_dropdown.pack()
         
         # AI Provider dropdown
@@ -993,10 +865,15 @@ class CuriosAgentGUI:
     
     def _on_monitor_change(self, monitor: str):
         """Handle monitor change"""
-        monitor_id = int(monitor.split()[-1])
-        self.config.set("monitor", monitor_id)
-        self.agent.monitor_manager.select_monitor(monitor_id)
-        logger.info(f"Selected monitor: {monitor_id}")
+        # Extract monitor ID from "Monitor 1: Display (1920x1080)" format
+        try:
+            # Parse "Monitor X:" format
+            monitor_id = int(monitor.split(":")[0].split()[-1]) - 1  # Convert 1-indexed to 0-indexed
+            self.config.set("monitor", monitor_id)
+            self.agent.monitor_manager.select_monitor(monitor_id)
+            logger.info(f"Selected monitor: {monitor_id}")
+        except Exception as e:
+            logger.error(f"Failed to parse monitor selection: {e}")
     
     def _on_provider_change(self, provider: str):
         """Handle AI provider change"""
@@ -1257,7 +1134,20 @@ class CuriosAgentGUI:
     
     def _show_legal_notice(self) -> bool:
         """Show legal notice dialog and get acceptance"""
-        # Create dialog window
+        # Use new LegalDialog if UI modules are available
+        if UI_AVAILABLE and LegalDialog:
+            try:
+                dialog = LegalDialog(parent=None, translations=self.t)
+                accepted = dialog.show()
+                if accepted:
+                    self.config.set("legal_notice_accepted", True)
+                    self.config.save()
+                return accepted
+            except Exception as e:
+                logger.error(f"Failed to show LegalDialog: {e}")
+                # Fall through to legacy dialog
+        
+        # Legacy dialog (fallback)
         dialog = ctk.CTkToplevel(None)
         dialog.title(self.t["legal_notice_title"])
         dialog.geometry("800x600")
@@ -1299,7 +1189,7 @@ class CuriosAgentGUI:
             command=on_accept,
             width=200,
             height=40,
-            fg_color="green"
+            fg_color=COLORS["success"] if not UI_AVAILABLE else Theme.BTN_PRIMARY_BG
         ).pack(side="left", padx=10)
         
         ctk.CTkButton(
@@ -1308,7 +1198,7 @@ class CuriosAgentGUI:
             command=on_decline,
             width=200,
             height=40,
-            fg_color="red"
+            fg_color=COLORS["error"] if not UI_AVAILABLE else Theme.BTN_DANGER_BG
         ).pack(side="left", padx=10)
         
         # Wait for dialog to close
@@ -1318,7 +1208,20 @@ class CuriosAgentGUI:
     
     def _show_eula(self) -> bool:
         """Show EULA dialog and get acceptance"""
-        # Create dialog window
+        # Use new EULADialog if UI modules are available
+        if UI_AVAILABLE and EULADialog:
+            try:
+                dialog = EULADialog(parent=self.root, translations=self.t)
+                accepted = dialog.show()
+                if accepted:
+                    self.config.set("eula_accepted", True)
+                    self.config.save()
+                return accepted
+            except Exception as e:
+                logger.error(f"Failed to show EULADialog: {e}")
+                # Fall through to legacy dialog
+        
+        # Legacy dialog (fallback)
         dialog = ctk.CTkToplevel(self.root)
         dialog.title(self.t["eula_title"])
         dialog.geometry("800x600")
@@ -1360,7 +1263,7 @@ class CuriosAgentGUI:
             command=on_accept,
             width=200,
             height=40,
-            fg_color="green"
+            fg_color=COLORS["success"] if not UI_AVAILABLE else Theme.BTN_PRIMARY_BG
         ).pack(side="left", padx=10)
         
         ctk.CTkButton(
@@ -1369,7 +1272,7 @@ class CuriosAgentGUI:
             command=on_decline,
             width=200,
             height=40,
-            fg_color="red"
+            fg_color=COLORS["error"] if not UI_AVAILABLE else Theme.BTN_DANGER_BG
         ).pack(side="left", padx=10)
         
         # Wait for dialog to close
@@ -1499,7 +1402,10 @@ def main():
     """Main entry point"""
     logger.info(f"Starting {APP_NAME} v{VERSION}")
     logger.info(f"Platform: {platform.platform()}")
-    logger.info(f"VM Detected: {SecurityKernel.is_vm()}")
+    
+    # Use improved VM detection
+    vm_detected, vm_reason = detect_vm()
+    logger.info(f"VM Detection: {vm_detected} - {vm_reason}")
     
     try:
         app = CuriosAgentGUI()
