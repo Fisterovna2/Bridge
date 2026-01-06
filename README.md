@@ -21,29 +21,42 @@ AI-powered desktop automation with computer vision.
 
 ## Quick Start
 
+### Requirements
+- Python 3.10 or higher
+- Windows 10/11 (Linux/Mac partial support)
+- Gemini API key (free at https://aistudio.google.com/apikey)
+
 ### Installation
 
+1. Clone the repository:
 ```bash
 git clone https://github.com/Fisterovna2/Bridge.git
 cd Bridge
+```
+
+2. Install dependencies:
+```bash
 pip install -r requirements.txt
 ```
 
-### Get API Keys
-
-You'll need at least one AI provider API key:
-
-- **Gemini**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey) (free tier available)
-- **OpenAI**: Get from [OpenAI Platform](https://platform.openai.com/api-keys)
-- **Claude**: Get from [Anthropic Console](https://console.anthropic.com/)
-- **OpenRouter**: Get from [OpenRouter](https://openrouter.ai/keys)
-- **Ollama**: Install locally from [Ollama](https://ollama.ai/) (no API key needed)
-
-### Run
-
+3. Run the agent:
 ```bash
 python curios_agent.py
 ```
+
+4. On first launch:
+   - Read and accept Legal Notice
+   - Go to Settings tab
+   - Enter your Gemini API key
+   - Save settings
+
+5. Enter a task in the input field and click Execute
+
+### Example tasks
+- "Open Notepad"
+- "Open browser and go to google.com"
+- "Click the Start button"
+- "Type hello world"
 
 ## Configuration
 
@@ -323,16 +336,7 @@ See [LEGAL_NOTICE.md](LEGAL_NOTICE.md) for legal information.
 
 ## Roadmap
 
-- [x] Plugin system
-- [x] Multi-monitor support
-- [x] OCR text detection
-- [x] Custom action macros
-- [x] Cloud sync
-- [x] Multi-AI provider support
-- [ ] Mobile companion app (Coming soon - separate repository)
-- [ ] Web dashboard
-- [ ] Scheduled automation
-- [ ] Action templates library
+- Mobile companion app (in development)
 
 ## System Requirements
 
