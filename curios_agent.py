@@ -942,10 +942,19 @@ class CuriosAgentGUI:
     
     def _confirm_action(self, action: str) -> bool:
         """Confirmation dialog for actions in NORMAL mode"""
-        return messagebox.askyesno(
-            self.t["confirm_action"],
-            f"{self.t['confirm_message']}\n\n{action}"
-        )
+        result = [None]
+        event = threading.Event()
+        
+        def show_dialog():
+            result[0] = messagebox.askyesno(
+                self.t["confirm_action"],
+                f"{self.t['confirm_message']}\n\n{action}"
+            )
+            event.set()
+        
+        self.after(0, show_dialog)
+        event.wait()
+        return result[0]
     
     def _show_error(self, message: str):
         """Show error message"""
