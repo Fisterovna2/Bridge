@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Curios Agent v1.0 - AI Desktop Automation Agent
+Curios Agent v2.0 - AI Desktop Automation Agent
 Copyright (c) 2026. All rights reserved.
 
 AI-powered desktop automation agent with computer vision capabilities.
-Features multi-mode operation, built-in security, and privacy protection.
+Features multi-mode operation, multi-AI provider support, multi-monitor support,
+built-in security, and privacy protection.
 """
 
 import os
@@ -34,6 +35,26 @@ except ImportError as e:
     print("Please install requirements: pip install -r requirements.txt")
     sys.exit(1)
 
+# Import core modules
+try:
+    from core.monitors import MonitorManager
+except ImportError:
+    print("Warning: Monitor manager not found")
+    MonitorManager = None
+
+# Import AI providers
+try:
+    from ai_providers.gemini_provider import GeminiProvider
+    from ai_providers.openai_provider import OpenAIProvider
+    from ai_providers.claude_provider import ClaudeProvider
+    from ai_providers.ollama_provider import OllamaProvider
+except ImportError as e:
+    print(f"Warning: AI provider not found - {e}")
+    GeminiProvider = None
+    OpenAIProvider = None
+    ClaudeProvider = None
+    OllamaProvider = None
+
 # Import templates
 try:
     from templates import TemplateManager
@@ -57,6 +78,36 @@ PROTECTED_FILES = [
     "agent_system.log"
 ]
 
+# UI Color Scheme - Modern Dark Theme
+UI_COLORS = {
+    "background": "#1a1a2e",      # Main background
+    "card": "#16213e",             # Card/panel background
+    "accent": "#3B82F6",           # Primary accent (blue)
+    "accent_hover": "#2563EB",     # Accent hover state
+    "text": "#ffffff",             # Primary text
+    "text_secondary": "#94a3b8",   # Secondary text
+    "success": "#10b981",          # Success color (green)
+    "warning": "#f59e0b",          # Warning color (orange)
+    "danger": "#ef4444",           # Danger color (red)
+    "border": "#334155",           # Border color
+}
+
+# Default quick actions
+DEFAULT_QUICK_ACTIONS = [
+    {"name_en": "Open Browser", "name_ru": "Открыть браузер", "instruction": "open web browser"},
+    {"name_en": "Screenshot", "name_ru": "Скриншот", "instruction": "take screenshot"},
+    {"name_en": "Notepad", "name_ru": "Блокнот", "instruction": "open notepad"},
+    {"name_en": "File Explorer", "name_ru": "Проводник", "instruction": "open file explorer"},
+]
+
+# AI Provider Models
+AI_MODELS = {
+    "gemini": ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"],
+    "openai": ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
+    "claude": ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-sonnet-20240229"],
+    "ollama": ["llava", "llama2", "mistral", "codellama"],
+}
+
 # ============================================================================
 # ENUMS
 # ============================================================================
@@ -78,27 +129,27 @@ class Language(Enum):
 
 TRANSLATIONS = {
     "en": {
-        "app_title": "Curios Agent v1.0",
-        "control_panel": "Control Panel",
+        "app_title": "Curios Agent v2.0",
+        "control_panel": "Main",
         "settings": "Settings",
         "logs": "Logs",
         "about": "About",
         "templates": "Templates",
         "prompt": "Enter your instruction:",
-        "execute": "Execute",
-        "stop": "Stop",
+        "execute": "▶ Execute",
+        "stop": "■ Stop",
         "clear_logs": "Clear Logs",
         "mode": "Operation Mode:",
-        "api_key": "Gemini API Key:",
+        "api_key": "API Key:",
         "save_settings": "Save Settings",
         "language": "Language:",
         "status": "Status:",
-        "idle": "Idle",
+        "idle": "OK",
         "executing": "Executing...",
         "stopped": "Stopped",
-        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-powered desktop automation agent with computer vision.\n\nFeatures:\n- Multi-mode operation\n- Built-in security kernel\n- Privacy protection\n- Vision AI integration\n\nDeveloped with safety in mind.",
+        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-powered desktop automation agent with computer vision.\n\nFeatures:\n- Multi-mode operation\n- Multi-AI provider support\n- Multi-monitor support\n- Built-in security kernel\n- Privacy protection\n- Quick actions\n\nDeveloped with safety in mind.",
         "vm_required": "Error: This mode requires VM environment!",
-        "api_key_required": "Please set Gemini API key in Settings",
+        "api_key_required": "Please set API key in Settings",
         "settings_saved": "Settings saved successfully",
         "normal_mode_desc": "Safe mode with confirmations",
         "fair_play_mode_desc": "Human-like behavior (VM only)",
@@ -117,29 +168,44 @@ TRANSLATIONS = {
         "select_template": "Select a template to run:",
         "run_template": "Run Template",
         "template_category": "Category:",
+        # v2.0 new translations
+        "monitor": "Monitor:",
+        "ai_provider": "AI Provider:",
+        "model": "Model:",
+        "quick_actions": "Quick Actions:",
+        "add_custom": "+ Custom",
+        "select_monitor": "Select Monitor",
+        "select_provider": "Select AI Provider",
+        "select_model": "Select Model",
+        "gemini_api_key": "Gemini API Key:",
+        "openai_api_key": "OpenAI API Key:",
+        "claude_api_key": "Claude API Key:",
+        "ollama_url": "Ollama URL:",
+        "monitor_info": "Monitor Information",
+        "all_monitors": "All Monitors",
     },
     "ru": {
-        "app_title": "Curios Agent v1.0",
-        "control_panel": "Пульт Управления",
+        "app_title": "Curios Agent v2.0",
+        "control_panel": "Главная",
         "settings": "Настройки",
         "logs": "Логи",
         "about": "О Программе",
         "templates": "Шаблоны",
         "prompt": "Введите инструкцию:",
-        "execute": "Выполнить",
-        "stop": "Остановить",
+        "execute": "▶ Выполнить",
+        "stop": "■ Стоп",
         "clear_logs": "Очистить Логи",
         "mode": "Режим Работы:",
-        "api_key": "Gemini API Ключ:",
+        "api_key": "API Ключ:",
         "save_settings": "Сохранить Настройки",
         "language": "Язык:",
         "status": "Статус:",
-        "idle": "Ожидание",
+        "idle": "OK",
         "executing": "Выполняется...",
         "stopped": "Остановлено",
-        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-агент для автоматизации задач на ПК с компьютерным зрением.\n\nВозможности:\n- Мультирежимная работа\n- Встроенная система безопасности\n- Защита приватности\n- Интеграция Vision AI\n\nРазработан с акцентом на безопасность.",
+        "about_text": f"{APP_NAME} v{VERSION}\n\nAI-агент для автоматизации задач на ПК с компьютерным зрением.\n\nВозможности:\n- Мультирежимная работа\n- Поддержка нескольких AI провайдеров\n- Поддержка нескольких мониторов\n- Встроенная система безопасности\n- Защита приватности\n- Быстрые действия\n\nРазработан с акцентом на безопасность.",
         "vm_required": "Ошибка: Этот режим требует VM окружение!",
-        "api_key_required": "Укажите Gemini API ключ в Настройках",
+        "api_key_required": "Укажите API ключ в Настройках",
         "settings_saved": "Настройки успешно сохранены",
         "normal_mode_desc": "Безопасный режим с подтверждениями",
         "fair_play_mode_desc": "Человекоподобное поведение (только VM)",
@@ -158,6 +224,21 @@ TRANSLATIONS = {
         "select_template": "Выберите шаблон для запуска:",
         "run_template": "Запустить шаблон",
         "template_category": "Категория:",
+        # v2.0 новые переводы
+        "monitor": "Монитор:",
+        "ai_provider": "AI Провайдер:",
+        "model": "Модель:",
+        "quick_actions": "Быстрые действия:",
+        "add_custom": "+ Своё",
+        "select_monitor": "Выбрать монитор",
+        "select_provider": "Выбрать AI провайдер",
+        "select_model": "Выбрать модель",
+        "gemini_api_key": "Gemini API Ключ:",
+        "openai_api_key": "OpenAI API Ключ:",
+        "claude_api_key": "Claude API Ключ:",
+        "ollama_url": "Ollama URL:",
+        "monitor_info": "Информация о мониторах",
+        "all_monitors": "Все мониторы",
     }
 }
 
@@ -337,13 +418,22 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "mode": OperationMode.NORMAL.value,
         "language": Language.EN.value,
-        "api_key": "",
+        "api_key": "",  # Legacy, for backwards compatibility
         "mouse_speed": 0.5,
         "typing_speed": 0.1,
         "screenshot_privacy": True,
         "log_sanitization": True,
         "legal_notice_accepted": False,
         "eula_accepted": False,
+        # v2.0 new config options
+        "ai_provider": "gemini",
+        "ai_model": "gemini-2.0-flash-exp",
+        "gemini_api_key": "",
+        "openai_api_key": "",
+        "claude_api_key": "",
+        "ollama_url": "http://localhost:11434",
+        "selected_monitor": 0,
+        "quick_actions": DEFAULT_QUICK_ACTIONS.copy(),
     }
     
     def __init__(self, config_file: str = CONFIG_FILE):
@@ -423,27 +513,72 @@ class CuriosAgent:
         pyautogui.FAILSAFE = True
         pyautogui.PAUSE = 0.1
         
-        # Initialize Gemini API
-        self._init_gemini()
+        # Initialize monitor manager
+        if MonitorManager:
+            self.monitor_manager = MonitorManager()
+            # Select monitor from config
+            selected_monitor = self.config.get("selected_monitor", 0)
+            self.monitor_manager.select_monitor(selected_monitor)
+        else:
+            self.monitor_manager = None
+        
+        # Initialize AI provider
+        self._init_ai_provider()
+    
+    def _init_ai_provider(self):
+        """Initialize AI provider based on config"""
+        provider_name = self.config.get("ai_provider", "gemini")
+        model_name = self.config.get("ai_model", "gemini-2.0-flash-exp")
+        
+        self.ai_provider = None
+        
+        try:
+            if provider_name == "gemini" and GeminiProvider:
+                api_key = self.config.get("gemini_api_key", "") or self.config.get("api_key", "")
+                self.ai_provider = GeminiProvider(api_key=api_key)
+                self.ai_provider.model_name = model_name
+                
+            elif provider_name == "openai" and OpenAIProvider:
+                api_key = self.config.get("openai_api_key", "")
+                self.ai_provider = OpenAIProvider(api_key=api_key)
+                self.ai_provider.model_name = model_name
+                
+            elif provider_name == "claude" and ClaudeProvider:
+                api_key = self.config.get("claude_api_key", "")
+                self.ai_provider = ClaudeProvider(api_key=api_key)
+                self.ai_provider.model_name = model_name
+                
+            elif provider_name == "ollama" and OllamaProvider:
+                url = self.config.get("ollama_url", "http://localhost:11434")
+                self.ai_provider = OllamaProvider(api_key=url)
+                self.ai_provider.model_name = model_name
+            
+            if self.ai_provider:
+                success = self.ai_provider.initialize()
+                if success:
+                    logger.info(f"AI provider '{provider_name}' initialized successfully")
+                else:
+                    logger.warning(f"Failed to initialize AI provider '{provider_name}'")
+                    self.ai_provider = None
+        except Exception as e:
+            logger.error(f"Error initializing AI provider: {e}")
+            self.ai_provider = None
     
     def _init_gemini(self):
-        """Initialize Gemini API"""
-        api_key = self.config.get("api_key", "")
-        if api_key:
-            try:
-                genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
-                logger.info("Gemini API initialized")
-            except Exception as e:
-                logger.error(f"Failed to initialize Gemini: {e}")
-                self.model = None
-        else:
-            self.model = None
+        """Legacy method - Initialize Gemini API (for backwards compatibility)"""
+        self._init_ai_provider()
     
     def take_screenshot(self) -> Optional[Image.Image]:
         """Take screenshot with privacy filter"""
         try:
-            screenshot = pyautogui.screenshot()
+            # Use monitor manager if available
+            if self.monitor_manager:
+                screenshot = self.monitor_manager.take_screenshot()
+            else:
+                screenshot = pyautogui.screenshot()
+            
+            if not screenshot:
+                return None
             
             # Apply privacy filter if enabled
             if self.config.get("screenshot_privacy", True):
@@ -456,8 +591,8 @@ class CuriosAgent:
     
     def analyze_screen(self, instruction: str) -> Optional[str]:
         """Analyze screen with Vision AI"""
-        if not self.model:
-            logger.error("Gemini API not initialized")
+        if not self.ai_provider or not self.ai_provider.is_available():
+            logger.error("AI provider not available")
             return None
         
         try:
@@ -465,27 +600,9 @@ class CuriosAgent:
             if not screenshot:
                 return None
             
-            # Create prompt
-            prompt = f"""You are a desktop automation assistant. 
-Analyze the screenshot and provide step-by-step instructions to accomplish this task:
-{instruction}
-
-Respond with clear, executable steps using these actions:
-- move_mouse(x, y)
-- click(button='left/right/middle')
-- double_click()
-- drag(x1, y1, x2, y2)
-- type_text("text")
-- press_key("key")
-- hotkey("ctrl", "c")
-- scroll(clicks)
-- wait(seconds)
-
-Be specific with coordinates and actions."""
-            
-            # Generate response
-            response = self.model.generate_content([prompt, screenshot])
-            return response.text
+            # Use AI provider to analyze screen
+            response = self.ai_provider.analyze_screen(screenshot, instruction)
+            return response
             
         except Exception as e:
             logger.error(f"Failed to analyze screen: {e}")
@@ -701,6 +818,10 @@ class CuriosAgentGUI:
         
         logger.info("Curios Agent GUI initialized")
     
+    def get_text(self, key: str, default: str = "") -> str:
+        """Get translated text for a key"""
+        return self.t.get(key, default)
+    
     def _create_ui(self):
         """Create user interface"""
         # Create tabview
@@ -722,53 +843,209 @@ class CuriosAgentGUI:
         self._setup_about_tab()
     
     def _setup_control_tab(self):
-        """Setup control panel tab"""
-        # Status
-        status_frame = ctk.CTkFrame(self.tab_control)
-        status_frame.pack(fill="x", padx=10, pady=5)
+        """Setup control panel tab with modern UI"""
+        # Command input section
+        input_frame = ctk.CTkFrame(self.tab_control, fg_color=UI_COLORS["card"])
+        input_frame.pack(fill="x", padx=15, pady=15)
         
-        ctk.CTkLabel(status_frame, text=self.t["status"], 
-                    font=("Arial", 12, "bold")).pack(side="left", padx=5)
-        
-        self.status_label = ctk.CTkLabel(status_frame, text=self.t["idle"],
-                                        font=("Arial", 12))
-        self.status_label.pack(side="left", padx=5)
-        
-        # Prompt
-        ctk.CTkLabel(self.tab_control, text=self.t["prompt"],
-                    font=("Arial", 14)).pack(pady=10)
-        
-        self.prompt_text = ctk.CTkTextbox(self.tab_control, height=150)
-        self.prompt_text.pack(fill="x", padx=10, pady=5)
-        
-        # Buttons
-        button_frame = ctk.CTkFrame(self.tab_control)
-        button_frame.pack(fill="x", padx=10, pady=10)
-        
-        self.execute_btn = ctk.CTkButton(
-            button_frame, text=self.t["execute"],
-            command=self._on_execute,
+        ctk.CTkLabel(
+            input_frame, 
+            text=self.t["prompt"],
             font=("Arial", 14, "bold"),
-            height=40
+            text_color=UI_COLORS["text"]
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+        
+        # Large command input textbox
+        self.prompt_text = ctk.CTkTextbox(
+            input_frame, 
+            height=120,
+            font=("Consolas", 12),
+            fg_color=UI_COLORS["background"],
+            border_color=UI_COLORS["border"],
+            border_width=2
         )
-        self.execute_btn.pack(side="left", expand=True, padx=5)
+        self.prompt_text.pack(fill="x", padx=10, pady=(0, 10))
+        
+        # Control buttons frame
+        button_frame = ctk.CTkFrame(self.tab_control, fg_color=UI_COLORS["card"])
+        button_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Buttons with icons
+        self.execute_btn = ctk.CTkButton(
+            button_frame,
+            text=self.t["execute"],
+            command=self._on_execute,
+            font=("Arial", 16, "bold"),
+            height=45,
+            fg_color=UI_COLORS["accent"],
+            hover_color=UI_COLORS["accent_hover"]
+        )
+        self.execute_btn.pack(side="left", expand=True, padx=10, pady=10)
         
         self.stop_btn = ctk.CTkButton(
-            button_frame, text=self.t["stop"],
+            button_frame,
+            text=self.t["stop"],
             command=self._on_stop,
-            font=("Arial", 14, "bold"),
-            height=40,
-            fg_color="red",
-            hover_color="darkred"
+            font=("Arial", 16, "bold"),
+            height=45,
+            fg_color=UI_COLORS["danger"],
+            hover_color="#dc2626"
         )
-        self.stop_btn.pack(side="left", expand=True, padx=5)
+        self.stop_btn.pack(side="left", expand=True, padx=10, pady=10)
         self.stop_btn.configure(state="disabled")
+        
+        # Status bar
+        status_bar = ctk.CTkFrame(button_frame, fg_color="transparent")
+        status_bar.pack(side="right", padx=10)
+        
+        ctk.CTkLabel(
+            status_bar,
+            text=self.t["status"],
+            font=("Arial", 12, "bold"),
+            text_color=UI_COLORS["text_secondary"]
+        ).pack(side="left", padx=5)
+        
+        self.status_label = ctk.CTkLabel(
+            status_bar,
+            text=self.t["idle"],
+            font=("Arial", 12, "bold"),
+            text_color=UI_COLORS["success"]
+        )
+        self.status_label.pack(side="left", padx=5)
+        
+        # Quick settings panel
+        quick_settings = ctk.CTkFrame(self.tab_control, fg_color=UI_COLORS["card"])
+        quick_settings.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Mode selector
+        mode_frame = ctk.CTkFrame(quick_settings, fg_color="transparent")
+        mode_frame.pack(side="left", padx=10, pady=10)
+        
+        ctk.CTkLabel(
+            mode_frame,
+            text=self.t["mode"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"]
+        ).pack(anchor="w")
+        
+        self.mode_quick_var = ctk.StringVar(value=self.config.get("mode"))
+        self.mode_quick_menu = ctk.CTkOptionMenu(
+            mode_frame,
+            variable=self.mode_quick_var,
+            values=[m.value for m in OperationMode],
+            width=150,
+            fg_color=UI_COLORS["background"],
+            button_color=UI_COLORS["accent"]
+        )
+        self.mode_quick_menu.pack()
+        
+        # Monitor selector (if available)
+        if self.agent.monitor_manager:
+            monitor_frame = ctk.CTkFrame(quick_settings, fg_color="transparent")
+            monitor_frame.pack(side="left", padx=10, pady=10)
+            
+            ctk.CTkLabel(
+                monitor_frame,
+                text=self.t["monitor"],
+                font=("Arial", 11),
+                text_color=UI_COLORS["text_secondary"]
+            ).pack(anchor="w")
+            
+            monitors = self.agent.monitor_manager.get_monitors()
+            monitor_names = [f"Monitor {m['id']+1}: {m['width']}x{m['height']}" for m in monitors]
+            
+            self.monitor_quick_var = ctk.StringVar(value=monitor_names[self.config.get("selected_monitor", 0)])
+            self.monitor_quick_menu = ctk.CTkOptionMenu(
+                monitor_frame,
+                variable=self.monitor_quick_var,
+                values=monitor_names,
+                command=self._on_monitor_quick_change,
+                width=200,
+                fg_color=UI_COLORS["background"],
+                button_color=UI_COLORS["accent"]
+            )
+            self.monitor_quick_menu.pack()
+        
+        # AI Provider selector
+        ai_frame = ctk.CTkFrame(quick_settings, fg_color="transparent")
+        ai_frame.pack(side="left", padx=10, pady=10)
+        
+        ctk.CTkLabel(
+            ai_frame,
+            text=self.t["ai_provider"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"]
+        ).pack(anchor="w")
+        
+        self.ai_quick_var = ctk.StringVar(value=self.config.get("ai_provider", "gemini").title())
+        self.ai_quick_menu = ctk.CTkOptionMenu(
+            ai_frame,
+            variable=self.ai_quick_var,
+            values=["Gemini", "OpenAI", "Claude", "Ollama"],
+            width=150,
+            fg_color=UI_COLORS["background"],
+            button_color=UI_COLORS["accent"]
+        )
+        self.ai_quick_menu.pack()
+        
+        # Quick actions section
+        quick_actions_frame = ctk.CTkFrame(self.tab_control, fg_color=UI_COLORS["card"])
+        quick_actions_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        ctk.CTkLabel(
+            quick_actions_frame,
+            text=self.t["quick_actions"],
+            font=("Arial", 14, "bold"),
+            text_color=UI_COLORS["text"]
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+        
+        # Quick action buttons
+        actions_container = ctk.CTkFrame(quick_actions_frame, fg_color="transparent")
+        actions_container.pack(fill="x", padx=10, pady=(0, 10))
+        
+        quick_actions = self.config.get("quick_actions", DEFAULT_QUICK_ACTIONS)
+        for action in quick_actions[:4]:  # Show first 4
+            name_key = f"name_{self.lang.value}"
+            action_name = action.get(name_key, action.get("name_en", "Action"))
+            
+            btn = ctk.CTkButton(
+                actions_container,
+                text=action_name,
+                command=lambda a=action: self._run_quick_action(a),
+                height=35,
+                fg_color=UI_COLORS["background"],
+                hover_color=UI_COLORS["accent"],
+                border_width=1,
+                border_color=UI_COLORS["border"]
+            )
+            btn.pack(side="left", padx=5)
+        
+        # Add custom button
+        ctk.CTkButton(
+            actions_container,
+            text=self.t["add_custom"],
+            command=self._add_custom_action,
+            height=35,
+            fg_color=UI_COLORS["accent"],
+            hover_color=UI_COLORS["accent_hover"]
+        ).pack(side="left", padx=5)
     
     def _setup_settings_tab(self):
-        """Setup settings tab"""
-        # Mode
-        ctk.CTkLabel(self.tab_settings, text=self.t["mode"],
-                    font=("Arial", 12, "bold")).pack(pady=10)
+        """Setup settings tab with modern UI"""
+        # Create scrollable frame for settings
+        settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, fg_color="transparent")
+        settings_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # ==================== Mode Settings ====================
+        mode_section = ctk.CTkFrame(settings_scroll, fg_color=UI_COLORS["card"])
+        mode_section.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(
+            mode_section,
+            text=self.t["mode"],
+            font=("Arial", 14, "bold"),
+            text_color=UI_COLORS["text"]
+        ).pack(anchor="w", padx=15, pady=(15, 10))
         
         self.mode_var = ctk.StringVar(value=self.config.get("mode"))
         
@@ -779,39 +1056,256 @@ class CuriosAgentGUI:
         ]
         
         for mode_value, description in modes:
-            frame = ctk.CTkFrame(self.tab_settings)
-            frame.pack(fill="x", padx=10, pady=5)
+            frame = ctk.CTkFrame(mode_section, fg_color="transparent")
+            frame.pack(fill="x", padx=15, pady=5)
             
             radio = ctk.CTkRadioButton(
-                frame, text=f"{mode_value}", 
+                frame,
+                text=f"{mode_value}",
                 variable=self.mode_var,
-                value=mode_value
+                value=mode_value,
+                font=("Arial", 12, "bold"),
+                fg_color=UI_COLORS["accent"],
+                hover_color=UI_COLORS["accent_hover"]
             )
             radio.pack(side="left", padx=5)
             
-            ctk.CTkLabel(frame, text=f"({description})",
-                        font=("Arial", 10)).pack(side="left", padx=5)
+            ctk.CTkLabel(
+                frame,
+                text=f"({description})",
+                font=("Arial", 10),
+                text_color=UI_COLORS["text_secondary"]
+            ).pack(side="left", padx=5)
         
-        # Language
-        ctk.CTkLabel(self.tab_settings, text=self.t["language"],
-                    font=("Arial", 12, "bold")).pack(pady=10)
+        # ==================== Monitor Settings ====================
+        if self.agent.monitor_manager:
+            monitor_section = ctk.CTkFrame(settings_scroll, fg_color=UI_COLORS["card"])
+            monitor_section.pack(fill="x", pady=(0, 15))
+            
+            ctk.CTkLabel(
+                monitor_section,
+                text=self.t["monitor"],
+                font=("Arial", 14, "bold"),
+                text_color=UI_COLORS["text"]
+            ).pack(anchor="w", padx=15, pady=(15, 10))
+            
+            monitors = self.agent.monitor_manager.get_monitors()
+            monitor_names = [f"Monitor {m['id']+1}: {m['width']}x{m['height']}" for m in monitors]
+            
+            self.monitor_var = ctk.StringVar(value=monitor_names[self.config.get("selected_monitor", 0)])
+            
+            for idx, monitor_name in enumerate(monitor_names):
+                ctk.CTkRadioButton(
+                    monitor_section,
+                    text=monitor_name,
+                    variable=self.monitor_var,
+                    value=monitor_name,
+                    font=("Arial", 11),
+                    fg_color=UI_COLORS["accent"],
+                    hover_color=UI_COLORS["accent_hover"]
+                ).pack(anchor="w", padx=15, pady=5)
+        
+        # ==================== AI Provider Settings ====================
+        ai_section = ctk.CTkFrame(settings_scroll, fg_color=UI_COLORS["card"])
+        ai_section.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(
+            ai_section,
+            text=self.t["ai_provider"],
+            font=("Arial", 14, "bold"),
+            text_color=UI_COLORS["text"]
+        ).pack(anchor="w", padx=15, pady=(15, 10))
+        
+        # AI Provider selector
+        provider_frame = ctk.CTkFrame(ai_section, fg_color="transparent")
+        provider_frame.pack(fill="x", padx=15, pady=5)
+        
+        ctk.CTkLabel(
+            provider_frame,
+            text=self.t["select_provider"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"]
+        ).pack(side="left", padx=5)
+        
+        self.provider_var = ctk.StringVar(value=self.config.get("ai_provider", "gemini"))
+        self.provider_menu = ctk.CTkOptionMenu(
+            provider_frame,
+            variable=self.provider_var,
+            values=["gemini", "openai", "claude", "ollama"],
+            command=self._on_provider_change,
+            width=200,
+            fg_color=UI_COLORS["background"],
+            button_color=UI_COLORS["accent"]
+        )
+        self.provider_menu.pack(side="left", padx=5)
+        
+        # Model selector
+        model_frame = ctk.CTkFrame(ai_section, fg_color="transparent")
+        model_frame.pack(fill="x", padx=15, pady=5)
+        
+        ctk.CTkLabel(
+            model_frame,
+            text=self.t["select_model"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"]
+        ).pack(side="left", padx=5)
+        
+        self.model_var = ctk.StringVar(value=self.config.get("ai_model", "gemini-2.0-flash-exp"))
+        self.model_menu = ctk.CTkOptionMenu(
+            model_frame,
+            variable=self.model_var,
+            values=AI_MODELS.get(self.provider_var.get(), ["default"]),
+            width=250,
+            fg_color=UI_COLORS["background"],
+            button_color=UI_COLORS["accent"]
+        )
+        self.model_menu.pack(side="left", padx=5)
+        
+        # ==================== API Keys ====================
+        keys_section = ctk.CTkFrame(settings_scroll, fg_color=UI_COLORS["card"])
+        keys_section.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(
+            keys_section,
+            text=self.t["api_key"],
+            font=("Arial", 14, "bold"),
+            text_color=UI_COLORS["text"]
+        ).pack(anchor="w", padx=15, pady=(15, 10))
+        
+        # Gemini API Key
+        gemini_frame = ctk.CTkFrame(keys_section, fg_color="transparent")
+        gemini_frame.pack(fill="x", padx=15, pady=5)
+        
+        ctk.CTkLabel(
+            gemini_frame,
+            text=self.t["gemini_api_key"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"],
+            width=120,
+            anchor="w"
+        ).pack(side="left", padx=5)
+        
+        self.gemini_key_entry = ctk.CTkEntry(
+            gemini_frame,
+            width=400,
+            show="*",
+            fg_color=UI_COLORS["background"],
+            border_color=UI_COLORS["border"]
+        )
+        self.gemini_key_entry.pack(side="left", padx=5, fill="x", expand=True)
+        self.gemini_key_entry.insert(0, self.config.get("gemini_api_key", "") or self.config.get("api_key", ""))
+        
+        # OpenAI API Key
+        openai_frame = ctk.CTkFrame(keys_section, fg_color="transparent")
+        openai_frame.pack(fill="x", padx=15, pady=5)
+        
+        ctk.CTkLabel(
+            openai_frame,
+            text=self.t["openai_api_key"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"],
+            width=120,
+            anchor="w"
+        ).pack(side="left", padx=5)
+        
+        self.openai_key_entry = ctk.CTkEntry(
+            openai_frame,
+            width=400,
+            show="*",
+            fg_color=UI_COLORS["background"],
+            border_color=UI_COLORS["border"]
+        )
+        self.openai_key_entry.pack(side="left", padx=5, fill="x", expand=True)
+        self.openai_key_entry.insert(0, self.config.get("openai_api_key", ""))
+        
+        # Claude API Key
+        claude_frame = ctk.CTkFrame(keys_section, fg_color="transparent")
+        claude_frame.pack(fill="x", padx=15, pady=5)
+        
+        ctk.CTkLabel(
+            claude_frame,
+            text=self.t["claude_api_key"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"],
+            width=120,
+            anchor="w"
+        ).pack(side="left", padx=5)
+        
+        self.claude_key_entry = ctk.CTkEntry(
+            claude_frame,
+            width=400,
+            show="*",
+            fg_color=UI_COLORS["background"],
+            border_color=UI_COLORS["border"]
+        )
+        self.claude_key_entry.pack(side="left", padx=5, fill="x", expand=True)
+        self.claude_key_entry.insert(0, self.config.get("claude_api_key", ""))
+        
+        # Ollama URL
+        ollama_frame = ctk.CTkFrame(keys_section, fg_color="transparent")
+        ollama_frame.pack(fill="x", padx=15, pady=(5, 15))
+        
+        ctk.CTkLabel(
+            ollama_frame,
+            text=self.t["ollama_url"],
+            font=("Arial", 11),
+            text_color=UI_COLORS["text_secondary"],
+            width=120,
+            anchor="w"
+        ).pack(side="left", padx=5)
+        
+        self.ollama_url_entry = ctk.CTkEntry(
+            ollama_frame,
+            width=400,
+            fg_color=UI_COLORS["background"],
+            border_color=UI_COLORS["border"]
+        )
+        self.ollama_url_entry.pack(side="left", padx=5, fill="x", expand=True)
+        self.ollama_url_entry.insert(0, self.config.get("ollama_url", "http://localhost:11434"))
+        
+        # ==================== Language Settings ====================
+        lang_section = ctk.CTkFrame(settings_scroll, fg_color=UI_COLORS["card"])
+        lang_section.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(
+            lang_section,
+            text=self.t["language"],
+            font=("Arial", 14, "bold"),
+            text_color=UI_COLORS["text"]
+        ).pack(anchor="w", padx=15, pady=(15, 10))
         
         self.lang_var = ctk.StringVar(value=self.config.get("language"))
-        lang_frame = ctk.CTkFrame(self.tab_settings)
-        lang_frame.pack(fill="x", padx=10, pady=5)
+        lang_frame = ctk.CTkFrame(lang_section, fg_color="transparent")
+        lang_frame.pack(fill="x", padx=15, pady=(5, 15))
         
-        ctk.CTkRadioButton(lang_frame, text="English", 
-                          variable=self.lang_var, value="en").pack(side="left", padx=10)
-        ctk.CTkRadioButton(lang_frame, text="Русский",
-                          variable=self.lang_var, value="ru").pack(side="left", padx=10)
+        ctk.CTkRadioButton(
+            lang_frame,
+            text="English",
+            variable=self.lang_var,
+            value="en",
+            font=("Arial", 11),
+            fg_color=UI_COLORS["accent"]
+        ).pack(side="left", padx=10)
         
-        # API Key
-        ctk.CTkLabel(self.tab_settings, text=self.t["api_key"],
-                    font=("Arial", 12, "bold")).pack(pady=10)
+        ctk.CTkRadioButton(
+            lang_frame,
+            text="Русский",
+            variable=self.lang_var,
+            value="ru",
+            font=("Arial", 11),
+            fg_color=UI_COLORS["accent"]
+        ).pack(side="left", padx=10)
         
-        self.api_key_entry = ctk.CTkEntry(self.tab_settings, width=400,
-                                         show="*")
-        self.api_key_entry.pack(padx=10, pady=5)
+        # ==================== Save Button ====================
+        ctk.CTkButton(
+            settings_scroll,
+            text=self.t["save_settings"],
+            command=self._on_save_settings,
+            font=("Arial", 14, "bold"),
+            height=45,
+            fg_color=UI_COLORS["success"],
+            hover_color="#059669"
+        ).pack(pady=20)
         self.api_key_entry.insert(0, self.config.get("api_key", ""))
         
         # Save button
