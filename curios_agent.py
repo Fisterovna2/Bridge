@@ -45,7 +45,7 @@ except ImportError:
 # CONSTANTS AND CONFIGURATION
 # ============================================================================
 
-VERSION = "1.0"
+VERSION = "2.0"
 APP_NAME = "Curios Agent"
 CONFIG_FILE = "curios_config.json"
 LOG_FILE = "agent_system.log"
@@ -432,7 +432,7 @@ class CuriosAgent:
         if api_key:
             try:
                 genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
                 logger.info("Gemini API initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini: {e}")
@@ -942,10 +942,19 @@ class CuriosAgentGUI:
     
     def _confirm_action(self, action: str) -> bool:
         """Confirmation dialog for actions in NORMAL mode"""
-        return messagebox.askyesno(
-            self.t["confirm_action"],
-            f"{self.t['confirm_message']}\n\n{action}"
-        )
+        result = [None]
+        event = threading.Event()
+        
+        def show_dialog():
+            result[0] = messagebox.askyesno(
+                self.t["confirm_action"],
+                f"{self.t['confirm_message']}\n\n{action}"
+            )
+            event.set()
+        
+        self.root.after(0, show_dialog)
+        event.wait()
+        return result[0]
     
     def _show_error(self, message: str):
         """Show error message"""

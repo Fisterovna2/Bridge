@@ -40,7 +40,7 @@ class GeminiProvider(BaseAIProvider):
         
         try:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
             self.initialized = True
             logger.info("Gemini provider initialized")
             return True
