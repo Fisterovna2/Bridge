@@ -64,8 +64,28 @@ class MonitorManager:
         return monitors
     
     def get_monitors(self) -> List[Dict[str, any]]:
-        """Get list of all monitors"""
+        """Get list of all monitors with human-readable numbering"""
         return self.monitors
+    
+    def get_list(self) -> List[str]:
+        """
+        Get list of monitors as formatted strings with numbering from 1
+        Returns list like: ["Monitor 1: Display (1920x1080)", "Monitor 2: Display (2560x1440)"]
+        """
+        result = []
+        for i, m in enumerate(self.monitors):
+            # Clean up monitor name
+            name = m.get("name", f"Display")
+            # Remove Windows-specific prefix
+            if name.startswith("\\\\.\\"):
+                name = name.replace("\\\\.\\", "")
+            # Simplify generic names
+            if "DISPLAY" in name.upper():
+                name = "Display"
+            
+            # Format: Monitor 1: Name (WIDTHxHEIGHT)
+            result.append(f"Monitor {i+1}: {name} ({m['width']}x{m['height']})")
+        return result
     
     def get_monitor(self, monitor_id: int) -> Optional[Dict[str, any]]:
         """Get specific monitor by ID"""
@@ -83,16 +103,56 @@ class MonitorManager:
         return self.monitors[0] if self.monitors else None
     
     def select_monitor(self, monitor_id: int) -> bool:
-        """Select monitor for operations"""
+        """
+        Select monitor for operations
+        
+        Args:
+            monitor_id: Monitor ID (0-based index)
+        """
         if self.get_monitor(monitor_id):
             self.selected_monitor = monitor_id
             logger.info(f"Selected monitor {monitor_id}")
             return True
         return False
     
+    def select(self, index: int):
+        """
+        Select monitor (0-based index)
+        Alias for select_monitor for compatibility
+        """
+        return self.select_monitor(index)
+    
     def get_selected_monitor(self) -> Dict[str, any]:
         """Get currently selected monitor"""
         return self.get_monitor(self.selected_monitor)
+    
+    def get_region(self) -> Tuple[int, int, int, int]:
+        """
+        Get region of selected monitor as (x, y, width, height)
+        
+        Returns:
+            Tuple of (x, y, width, height)
+        """
+        monitor = self.get_selected_monitor()
+        if monitor:
+            return (monitor["x"], monitor["y"], monitor["width"], monitor["height"])
+        # Fallback to full screen
+        import pyautogui
+        w, h = pyautogui.size()
+        return (0, 0, w, h)
+    
+    def screenshot(self, monitor_id: Optional[int] = None) -> Optional[Image.Image]:
+        """
+        Take screenshot of specific monitor or selected monitor
+        Alias for take_screenshot for compatibility
+        
+        Args:
+            monitor_id: Optional monitor ID, uses selected if None
+        
+        Returns:
+            PIL Image or None
+        """
+        return self.take_screenshot(monitor_id=monitor_id)
     
     def take_screenshot(self, monitor_id: Optional[int] = None, all_monitors: bool = False) -> Optional[Image.Image]:
         """
