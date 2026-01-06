@@ -1200,8 +1200,6 @@ class CuriosAgentGUI:
             height=40,
             fg_color=COLORS["error"] if not UI_AVAILABLE else Theme.BTN_DANGER_BG
         ).pack(side="left", padx=10)
-            fg_color="red"
-        ).pack(side="left", padx=10)
         
         # Wait for dialog to close
         dialog.wait_window()
@@ -1274,7 +1272,7 @@ class CuriosAgentGUI:
             command=on_decline,
             width=200,
             height=40,
-            fg_color="red"
+            fg_color=COLORS["error"] if not UI_AVAILABLE else Theme.BTN_DANGER_BG
         ).pack(side="left", padx=10)
         
         # Wait for dialog to close
