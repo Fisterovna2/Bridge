@@ -186,6 +186,20 @@ class PrivacyFilter:
         """
         self.SENSITIVE_PATTERNS.append((pattern, replacement))
         logger.info(f"Added custom sensitive pattern: {pattern}")
+    
+    @staticmethod
+    def blur_sensitive_areas(image: Image.Image, blur_radius: int = 15) -> Image.Image:
+        """
+        Static method to blur sensitive areas (alias for backward compatibility)
+        
+        Args:
+            image: PIL Image to process
+            blur_radius: Gaussian blur radius (default: 15)
+        
+        Returns:
+            PIL Image with blurred regions
+        """
+        return default_filter.blur_screenshot(image, blur_radius)
 
 
 # Create a global instance for easy access
