@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 from ai_bridge.vision.frame_types import RedactedFrame
 
 if TYPE_CHECKING:
+    # В рантайме НЕ импортим ocr.py, чтобы не было циклических импортов
     from ai_bridge.vision.ocr import TextBox
 
 
@@ -36,5 +37,5 @@ def redact_image(image: Image.Image, pii_boxes: Iterable[BoxLike]) -> RedactedFr
     )
 
 
-# Для совместимости, если где-то импортят из ai_bridge.vision.redact:
+# Чтобы старые импорты тоже работали:
 __all__ = ["RedactedFrame", "redact_image"]
