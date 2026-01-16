@@ -1,0 +1,16 @@
+mode: normal
+allowlist_paths:
+  - Documents
+  - Downloads
+privacy:
+  redact_patterns:
+    - email
+    - phone
+    - card
+vm:
+  adapter: placeholder
+  snapshot_command: "virsh snapshot-revert ai-bridge clean"
+logging:
+  path: logs/session.jsonl
+dev:
+  dry_run: true
