@@ -1,0 +1,38 @@
+mode: normal
+allowlist_paths:
+  - Documents
+  - Downloads
+privacy:
+  redact_patterns:
+    - email
+    - phone
+    - card
+vm:
+  adapter: virtualbox
+  vm_name: "AI-Bridge"
+  snapshot_name: "clean"
+models:
+  default:
+    vision: mvp
+    reasoner: mvp
+    executor: mvp
+  game:
+    vision: mvp
+    reasoner: mvp
+    executor: mvp
+  sandbox:
+    vision: mvp
+    reasoner: backup
+    executor: backup
+providers:
+  mvp:
+    type: simple
+    fallback: ["backup"]
+  backup:
+    type: simple
+logging:
+  path: logs/session.jsonl
+  session_dir: logs/session
+dev:
+  dry_run: true
+  click_delay_ms: 350
