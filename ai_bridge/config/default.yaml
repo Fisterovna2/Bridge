@@ -1,0 +1,18 @@
+mode: normal
+allowlist_paths:
+  - Documents
+  - Downloads
+privacy:
+  redact_patterns:
+    - email
+    - phone
+    - card
+vm:
+  adapter: virtualbox
+  vm_name: "AI-Bridge"
+  snapshot_name: "clean"
+logging:
+  path: logs/session.jsonl
+dev:
+  dry_run: true
+  click_delay_ms: 350
