@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Protocol, TYPE_CHECKING
 
 from PIL import Image, ImageDraw
 
-from ai_bridge.vision.ocr import TextBox
+if TYPE_CHECKING:
+    # Только для подсказок типов. В рантайме НЕ импортим ocr.py (разрываем циклы).
+    from ai_bridge.vision.ocr import TextBox
+
+
+class BoxLike(Protocol):
+    left: int
+    top: int
+    width: int
+    height: int
 
 
 @dataclass(frozen=True)
@@ -23,26 +32,23 @@ class RedactedFrame:
             object.__setattr__(self, "meta", {})
 
 
-def redact_image(image: Image.Image, pii_boxes: Iterable[TextBox]) -> RedactedFrame:
+def redact_image(image: Image.Image, pii_boxes: Iterable[BoxLike]) -> RedactedFrame:
     """
     Redact PII regions in the image and return a RedactedFrame.
     """
-    boxes: List[TextBox] = list(pii_boxes)
+    boxes: List[BoxLike] = list(pii_boxes)
 
     redacted_img = image.copy()
     drawer = ImageDraw.Draw(redacted_img)
 
     for box in boxes:
-        left = max(0, box.left)
-        top = max(0, box.top)
-        right = max(left, box.left + box.width)
-        bottom = max(top, box.top + box.height)
+        left = max(0, int(box.left))
+        top = max(0, int(box.top))
+        right = max(left, int(box.left + box.width))
+        bottom = max(top, int(box.top + box.height))
         drawer.rectangle([left, top, right, bottom], fill=(0, 0, 0))
 
     return RedactedFrame(
         image=redacted_img,
-        meta={
-            "pii_boxes": len(boxes),
-            "size": redacted_img.size,
-        },
+        meta={"pii_boxes": len(boxes), "size": redacted_img.size},
     )
