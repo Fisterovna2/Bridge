@@ -1,66 +1,100 @@
 from __future__ import annotations
 
-from PySide6 import QtCore, QtGui, QtWidgets
+from typing import Optional, Tuple
 
-from ai_bridge.core.actions import Action, ActionType
+# ВАЖНО: PySide6 может падать в headless CI из-за отсутствия libEGL.so.1.
+# Поэтому импортируем безопасно и делаем no-op fallback.
+_PYSIDE_OK = False
+_PYSIDE_ERR: Optional[BaseException] = None
+
+try:
+    from PySide6 import QtCore, QtGui, QtWidgets  # type: ignore
+
+    _PYSIDE_OK = True
+except BaseException as e:  # ловим и ImportError, и OSError (libEGL.so.1)
+    _PYSIDE_OK = False
+    _PYSIDE_ERR = e
 
 
-class GhostCursorOverlay(QtWidgets.QWidget):
-    status_changed = QtCore.Signal(str)
+class GhostCursorOverlay:
+    """
+    Ghost cursor overlay used for demo/dry-run visualization.
+
+    In headless environments (CI), PySide6 may be unavailable or fail to load
+    (e.g. missing libEGL.so.1). In that case this becomes a no-op implementation
+    so imports/tests do not crash.
+    """
 
     def __init__(self) -> None:
-        super().__init__()
-        self._status = "idle"
-        self._target = QtCore.QPoint(100, 100)
-        self._pos = QtCore.QPoint(100, 100)
-        self._timer = QtCore.QTimer(self)
-        self._timer.timeout.connect(self._tick)
-        self._timer.start(16)
-        self.setWindowFlags(
-            QtCore.Qt.WindowType.FramelessWindowHint
-            | QtCore.Qt.WindowType.Tool
-            | QtCore.Qt.WindowType.WindowStaysOnTopHint
-        )
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.resize(QtWidgets.QApplication.primaryScreen().size())
-        self.show()
+        self._enabled = _PYSIDE_OK
+        self._pos: Tuple[int, int] = (0, 0)
 
-    def preview_action(self, action: Action) -> None:
-        if action.x is None or action.y is None:
+        # Real implementation only if PySide6 loaded successfully
+        if not self._enabled:
             return
-        self._target = QtCore.QPoint(action.x, action.y)
-        if action.action_type == ActionType.CLICK:
-            self.set_status("clicking")
-        elif action.action_type == ActionType.MOVE:
-            self.set_status("moving")
-        else:
-            self.set_status("thinking")
 
-    def set_status(self, status: str) -> None:
-        if status != self._status:
-            self._status = status
-            self.status_changed.emit(status)
+        self._app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        self._window = _GhostCursorWindow()
+        self._window.hide()
+
+    @property
+    def available(self) -> bool:
+        return self._enabled
+
+    def start(self) -> None:
+        if not self._enabled:
+            return
+        self._window.show()
+
+    def stop(self) -> None:
+        if not self._enabled:
+            return
+        self._window.hide()
+
+    def move_to(self, x: int, y: int) -> None:
+        self._pos = (int(x), int(y))
+        if not self._enabled:
+            return
+
+        self._window.move_cursor(self._pos[0], self._pos[1])
+
+    def explain_unavailable(self) -> str:
+        if self._enabled:
+            return "Ghost cursor overlay is available."
+        return f"Ghost cursor overlay is unavailable in this environment: {_PYSIDE_ERR!r}"
+
+
+if _PYSIDE_OK:
+
+    class _GhostCursorWindow(QtWidgets.QWidget):
+        def __init__(self) -> None:
+            super().__init__()
+            self.setWindowFlags(
+                QtCore.Qt.FramelessWindowHint
+                | QtCore.Qt.WindowStaysOnTopHint
+                | QtCore.Qt.Tool
+            )
+            self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+            self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
+
+            self._x = 0
+            self._y = 0
+            self.resize(32, 32)
+
+        def move_cursor(self, x: int, y: int) -> None:
+            self._x = x
+            self._y = y
+            self.move(self._x, self._y)
             self.update()
 
-    def _tick(self) -> None:
-        delta = self._target - self._pos
-        step = QtCore.QPoint(int(delta.x() * 0.2), int(delta.y() * 0.2))
-        if step.manhattanLength() == 0:
-            return
-        self._pos += step
-        self.update()
+        def paintEvent(self, event: QtGui.QPaintEvent) -> None:
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        color = QtGui.QColor(0, 200, 255, 180)
-        if self._status == "clicking":
-            color = QtGui.QColor(255, 120, 0, 200)
-        elif self._status == "thinking":
-            color = QtGui.QColor(120, 120, 255, 160)
-        painter.setPen(QtGui.QPen(color, 2))
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 0, 0, 0)))
-        painter.drawEllipse(self._pos, 12, 12)
-        painter.drawLine(self._pos + QtCore.QPoint(16, 0), self._pos + QtCore.QPoint(28, 0))
-        painter.drawLine(self._pos + QtCore.QPoint(0, 16), self._pos + QtCore.QPoint(0, 28))
+            pen = QtGui.QPen(QtGui.QColor(0, 255, 255, 200))
+            pen.setWidth(3)
+            painter.setPen(pen)
+            painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 255, 255, 80)))
+
+            r = self.rect().adjusted(4, 4, -4, -4)
+            painter.drawEllipse(r)
