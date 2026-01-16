@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from ai_bridge.vision.redact import RedactedFrame
+from ai_bridge.vision.frame_types import RedactedFrame
 
 
 class ModelProvider(ABC):
