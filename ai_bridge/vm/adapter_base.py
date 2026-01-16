@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from PIL import Image
-
 from ai_bridge.core.actions import Action
 
 
@@ -17,11 +15,11 @@ class VmAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def snapshot_revert(self, snapshot_name: str | None = None) -> None:
+    def snapshot_revert(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def get_frame(self) -> Image.Image | None:
+    def get_frame(self) -> bytes | None:
         raise NotImplementedError
 
     @abstractmethod

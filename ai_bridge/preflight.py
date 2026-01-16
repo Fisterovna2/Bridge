@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
-import subprocess
 from dataclasses import dataclass, field
 from typing import List
 
@@ -26,20 +25,6 @@ def run_preflight() -> PreflightResult:
             "VBoxManage not found. Install VirtualBox and ensure VBoxManage is on PATH "
             "to enable VM control."
         )
-    else:
-        try:
-            result = subprocess.run(
-                ["VBoxManage", "list", "extpacks"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            if "Extension Packs: 0" in result.stdout:
-                messages.append(
-                    "VirtualBox Extension Pack not found. VRDE/RDP may be unavailable."
-                )
-        except OSError:
-            messages.append("Unable to query VirtualBox Extension Pack status.")
     return PreflightResult(is_ok=not messages, messages=messages)
 
 

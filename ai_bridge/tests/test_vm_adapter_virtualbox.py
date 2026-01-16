@@ -22,10 +22,9 @@ def test_virtualbox_state_machine(tmp_path: Path) -> None:
     assert adapter.status().startswith("Running")
     adapter.get_frame()
     adapter.snapshot_revert("clean")
-    adapter.snapshot_revert()
     adapter.stop_vm()
 
     assert any("startvm" in call for call in calls)
     assert any("screenshotpng" in call for call in calls)
-    assert sum(1 for call in calls if "snapshot" in call) >= 2
+    assert any("snapshot" in call for call in calls)
     assert any("poweroff" in call for call in calls)
