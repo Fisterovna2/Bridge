@@ -7,7 +7,6 @@ from PySide6 import QtCore, QtWidgets
 from ai_bridge.core.actions import Action, ActionType
 from ai_bridge.core.modes import RunMode
 from ai_bridge.core.orchestrator import BridgeOrchestrator
-from ai_bridge.core.safety import RiskLevel
 from ai_bridge.ui.widgets import ImagePreview, LogConsole
 
 
@@ -18,9 +17,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("AI-Bridge MVP")
         self.resize(980, 720)
         self._build_ui()
-        self._status_timer = QtCore.QTimer(self)
-        self._status_timer.timeout.connect(self._refresh_status)
-        self._status_timer.start(250)
 
     def _build_ui(self) -> None:
         tabs = QtWidgets.QTabWidget()
@@ -81,12 +77,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dry_run_toggle.toggled.connect(self._toggle_dry_run)
         export_button = QtWidgets.QPushButton("Export logs")
         export_button.clicked.connect(self._export_logs)
-        reset_cancel_button = QtWidgets.QPushButton("Reset cancellation")
-        reset_cancel_button.clicked.connect(self._reset_cancellation)
-        self.status_label = QtWidgets.QLabel("Status: idle")
-        layout.addWidget(self.status_label)
         layout.addWidget(self.dry_run_toggle)
-        layout.addWidget(reset_cancel_button)
         layout.addWidget(export_button)
         layout.addWidget(self.log_console)
         return widget
@@ -94,7 +85,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _build_vm_tab(self) -> QtWidgets.QWidget:
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
-        self.vm_status = QtWidgets.QLabel(self.orchestrator.vm_status())
+        self.vm_status = QtWidgets.QLabel("VM adapter not configured")
         start_button = QtWidgets.QPushButton("Start VM")
         stop_button = QtWidgets.QPushButton("Stop VM")
         revert_button = QtWidgets.QPushButton("Revert snapshot")
@@ -112,46 +103,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_console.append_line(f"Mode set to {mode.value}")
 
     def _capture_and_redact(self) -> None:
-        redacted = self.orchestrator.capture_and_redact()
-        if self.orchestrator.state.last_redacted_path:
-            self.preview.set_image(str(self.orchestrator.state.last_redacted_path))
-            self.log_console.append_line(
-                f"Redacted preview saved: {self.orchestrator.state.last_redacted_path}"
-            )
-        else:
-            self.log_console.append_line("Redacted frame ready")
+        path = self.orchestrator.capture_and_redact()
+        self.preview.set_image(str(path))
+        self.log_console.append_line(f"Redacted preview saved: {path}")
 
     def _demo_action(self) -> None:
         action = Action(ActionType.CLICK, x=320, y=240)
         decision = self.orchestrator.execute_action(action, "Click demo in Documents")
-        if decision.requires_confirmation and not self.orchestrator.config.dry_run:
-            confirmed = self._confirm_action(decision.risk)
-            if confirmed:
-                decision = self.orchestrator.execute_action(
-                    action,
-                    "Click demo in Documents",
-                    confirmed=True,
-                )
-        self.log_console.append_line(f"Action eval: {decision.reason}")
-
-    def _confirm_action(self, risk: RiskLevel) -> bool:
-        message = f"Confirm {risk.value} risk action?"
-        result = QtWidgets.QMessageBox.question(
-            self,
-            "Confirm action",
-            message,
-            QtWidgets.QMessageBox.StandardButton.Yes
-            | QtWidgets.QMessageBox.StandardButton.No,
-        )
-        return result == QtWidgets.QMessageBox.StandardButton.Yes
+        self.log_console.append_line(f"Dry-run action: {decision.reason}")
 
     def _toggle_dry_run(self, checked: bool) -> None:
         self.orchestrator.config.dry_run = checked
         self.log_console.append_line(f"Dry-run set to {checked}")
-
-    def _reset_cancellation(self) -> None:
-        self.orchestrator.reset_cancellation()
-        self.log_console.append_line("Cancellation reset")
 
     def _export_logs(self) -> None:
         target = QtWidgets.QFileDialog.getSaveFileName(self, "Export logs", "session.jsonl")[0]
@@ -178,6 +141,3 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _update_vm_status(self) -> None:
         self.vm_status.setText(self.orchestrator.vm_status())
-
-    def _refresh_status(self) -> None:
-        self.status_label.setText(f"Status: {self.orchestrator.state.status}")

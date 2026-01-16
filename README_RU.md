@@ -4,8 +4,7 @@ AI-Bridge — это split-brain оркестратор, который позв
 
 ## Что готово в MVP
 - **Privacy Firewall**: захват → OCR → PII → редактирование изображения до отправки в модель.
-- **Guardrails**: разрушительные действия блокируются или требуют подтверждения (risk scoring).
-- **Kill switch**: любое физическое движение мыши/клавиатуры отменяет очередь действий в Normal Mode.
+- **Guardrails**: разрушительные действия блокируются или требуют подтверждения.
 - **Ghost cursor**: прозрачный оверлей, показывающий намерения агента.
 - **Dev Mode**: логи, dry-run, экспорт JSONL сессии.
 - **VM Adapter**: заглушка + инструкция для дальнейшей интеграции.
@@ -19,8 +18,6 @@ ai_bridge/
     actions.py
     safety.py
     router.py
-    model_provider.py
-    cancellation.py
   vision/
     capture.py
     ocr.py
@@ -30,7 +27,6 @@ ai_bridge/
     host_input.py
     vm_input.py
     ghost_cursor.py
-    kill_switch.py
   vm/
     adapter_base.py
     adapter_placeholder.py
@@ -59,9 +55,9 @@ ai_bridge/
    ```bash
    pip install -r requirements.txt
    ```
-4. Запуск UI (основной entrypoint):
+4. Запуск UI:
    ```bash
-   python -m ai_bridge
+   python -m ai_bridge.ui.app
    ```
 
 ### Linux (опционально)
@@ -75,12 +71,8 @@ ai_bridge/
    ```
 3. Запуск UI:
    ```bash
-   python -m ai_bridge
+   python -m ai_bridge.ui.app
    ```
-
-## Preflight checks
-- Если **PySide6** отсутствует, `python -m ai_bridge` выводит понятную ошибку.
-- Если **Tesseract** отсутствует, UI покажет предупреждение и OCR/редактирование не запустится.
 
 ## Использование (MVP)
 1. Откройте вкладку **Modes**.
@@ -97,12 +89,8 @@ ai_bridge/
 
 ## Guardrails (Normal Mode)
 - Опасные действия блокируются.
-- Medium/high риск требует подтверждения.
-- Действия с файлами ограничены allowlist папками.
+- Вне allowlist требуется подтверждение.
 - Dry-run включен по умолчанию.
-
-## Kill switch (Normal Mode)
-Любое движение мыши/клавиатуры отменяет очередь действий. Статус отображается как "Cancelled by user input" до сброса.
 
 ## VM интеграция (MVP)
 Адаптер-заглушка реализует:
@@ -112,11 +100,8 @@ ai_bridge/
 - `get_frame()`
 - `send_input()`
 
-### Следующий шаг: VirtualBox адаптер
-1. Включите **VRDE** (RDP) на VM.
-2. Используйте `VBoxManage controlvm <VM_NAME> vrde on`.
-3. Захват кадров через RDP или shared folder screenshot hook.
-4. Реализуйте `snapshot_revert` через `VBoxManage snapshot <VM_NAME> restore <SNAPSHOT>`.
+### Подключение реальной VM
+Замените `PlaceholderVmAdapter` на адаптер `virsh` / `qemu` / `VirtualBox`. В MVP только интерфейс и безопасная заглушка.
 
 ## Тесты
 ```bash

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List
 
 from PIL import Image
+import pytesseract
 
 
 @dataclass
@@ -17,8 +18,6 @@ class TextBox:
 
 class OcrEngine:
     def detect_text_boxes(self, image: Image.Image) -> List[TextBox]:
-        import pytesseract
-
         data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
         boxes: List[TextBox] = []
         for i, text in enumerate(data.get("text", [])):

@@ -4,9 +4,8 @@ AI-Bridge is a split-brain orchestrator that lets an AI agent **see** the screen
 
 ## MVP Highlights
 - **Normal Mode privacy firewall**: capture → OCR → PII detection → redact image before any model use.
-- **Guardrails**: destructive actions are blocked or require confirmation (risk scoring).
-- **Kill switch**: any physical mouse/keyboard input cancels the action queue in Normal Mode.
-- **Ghost cursor overlay**: translucent cursor showing intended actions with delay + animation.
+- **Guardrails**: destructive actions are blocked or require confirmation.
+- **Ghost cursor overlay**: translucent cursor showing intended actions with a brief delay and animation.
 - **Dev Mode**: logs, dry-run (simulate input), export session JSONL.
 - **VM Adapter interface**: placeholder adapter + instructions for real VM integration.
 
@@ -19,8 +18,6 @@ ai_bridge/
     actions.py
     safety.py
     router.py
-    model_provider.py
-    cancellation.py
   vision/
     capture.py
     ocr.py
@@ -30,7 +27,6 @@ ai_bridge/
     host_input.py
     vm_input.py
     ghost_cursor.py
-    kill_switch.py
   vm/
     adapter_base.py
     adapter_placeholder.py
@@ -59,9 +55,9 @@ ai_bridge/
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the UI (primary entrypoint):
+4. Run the UI:
    ```bash
-   python -m ai_bridge
+   python -m ai_bridge.ui.app
    ```
 
 ### Linux (optional)
@@ -75,12 +71,8 @@ ai_bridge/
    ```
 3. Run the UI:
    ```bash
-   python -m ai_bridge
+   python -m ai_bridge.ui.app
    ```
-
-## Preflight checks
-- If **PySide6** is missing, `python -m ai_bridge` prints a clear error.
-- If **Tesseract** is missing, the UI shows a warning and OCR/redaction will not run.
 
 ## Usage (MVP)
 1. Open **Modes** tab.
@@ -98,12 +90,8 @@ Pipeline enforced by the orchestrator:
 
 ## Guardrails (Normal Mode)
 - Destructive actions are blocked.
-- Medium/high risk actions require confirmation.
-- File actions are restricted to allowlisted paths.
+- Actions outside the allowlist require confirmation.
 - Dry-run is enabled by default.
-
-## Kill switch (Normal Mode)
-Any physical mouse/keyboard input cancels the current action queue. The UI shows status "Cancelled by user input" until reset.
 
 ## VM Integration (MVP)
 The placeholder adapter implements:
@@ -113,11 +101,8 @@ The placeholder adapter implements:
 - `get_frame()`
 - `send_input()`
 
-### Next step: VirtualBox adapter (suggested)
-1. Enable **VRDE** (RDP) on the VM.
-2. Use `VBoxManage controlvm <VM_NAME> vrde on`.
-3. Capture frames via RDP or a shared folder screenshot hook.
-4. Implement `snapshot_revert` with `VBoxManage snapshot <VM_NAME> restore <SNAPSHOT>`.
+### Connecting a real VM
+Replace `PlaceholderVmAdapter` with a concrete adapter using `virsh`, `qemu`, or `VirtualBox` CLI tools. The MVP only includes the interface and a safe stub.
 
 ## Tests
 ```bash

@@ -14,4 +14,3 @@ logging:
   path: logs/session.jsonl
 dev:
   dry_run: true
-  click_delay_ms: 350

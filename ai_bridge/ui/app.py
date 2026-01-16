@@ -1,26 +1,23 @@
 from __future__ import annotations
 
-import importlib.util
 import sys
 
-from ai_bridge.core.model_provider import RedactionGuardModelProvider, SimpleModelProvider
-from ai_bridge.core.router import ModelRouter
-from ai_bridge.preflight import PreflightResult, run_preflight
+from PySide6 import QtWidgets
+
+from ai_bridge.core.orchestrator import BridgeOrchestrator
+from ai_bridge.core.router import ModelRoleConfig, ModelRouter
+from ai_bridge.input.ghost_cursor import GhostCursorOverlay
+from ai_bridge.input.host_input import HostInputController
+from ai_bridge.ui.main_window import MainWindow
+from ai_bridge.vision.ocr import OcrEngine
+from ai_bridge.vision.pii import PiiDetector
 
 
-def build_orchestrator():
-    from ai_bridge.core.orchestrator import BridgeOrchestrator
-    from ai_bridge.input.ghost_cursor import GhostCursorOverlay
-    from ai_bridge.input.host_input import HostInputController
-    from ai_bridge.vision.ocr import OcrEngine
-    from ai_bridge.vision.pii import PiiDetector
-
-    base_provider = SimpleModelProvider("mvp")
-    provider = RedactionGuardModelProvider(base_provider)
+def build_orchestrator() -> BridgeOrchestrator:
     router = ModelRouter(
-        vision_provider=provider,
-        reasoner_provider=base_provider,
-        executor_provider=base_provider,
+        vision=ModelRoleConfig("vision", "local", "mvp"),
+        reasoner=ModelRoleConfig("reasoner", "local", "mvp"),
+        executor=ModelRoleConfig("executor", "local", "mvp"),
     )
     ocr = OcrEngine()
     pii = PiiDetector()
@@ -29,24 +26,8 @@ def build_orchestrator():
     return BridgeOrchestrator(router, ocr, pii, host_input, ghost_cursor)
 
 
-def _show_preflight_warning(qt_widgets, result: PreflightResult) -> None:
-    if result.is_ok:
-        return
-    message = "\n".join(result.messages)
-    qt_widgets.QMessageBox.warning(None, "AI-Bridge preflight warning", message)
-
-
 def main() -> int:
-    if importlib.util.find_spec("PySide6") is None:
-        print("Missing PySide6. Install with: pip install -r requirements.txt")
-        return 1
-
-    from PySide6 import QtWidgets
-    from ai_bridge.ui.main_window import MainWindow
-
     app = QtWidgets.QApplication(sys.argv)
-    preflight = run_preflight()
-    _show_preflight_warning(QtWidgets, preflight)
     orchestrator = build_orchestrator()
     window = MainWindow(orchestrator)
     window.show()
