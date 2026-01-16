@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, List
 
 from PIL import Image, ImageDraw
 
@@ -27,10 +27,12 @@ def redact_image(image: Image.Image, pii_boxes: Iterable[TextBox]) -> RedactedFr
     """
     Redact PII regions in the image and return a RedactedFrame.
     """
+    boxes: List[TextBox] = list(pii_boxes)
+
     redacted_img = image.copy()
     drawer = ImageDraw.Draw(redacted_img)
 
-    for box in pii_boxes:
+    for box in boxes:
         left = max(0, box.left)
         top = max(0, box.top)
         right = max(left, box.left + box.width)
@@ -40,7 +42,7 @@ def redact_image(image: Image.Image, pii_boxes: Iterable[TextBox]) -> RedactedFr
     return RedactedFrame(
         image=redacted_img,
         meta={
-            "pii_boxes": len(list(pii_boxes)),
+            "pii_boxes": len(boxes),
             "size": redacted_img.size,
         },
     )
