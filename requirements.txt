@@ -1,10 +1,7 @@
-customtkinter>=5.2.0
-pyautogui>=0.9.54
-pydirectinput>=1.0.4
-google-generativeai>=0.3.0
-openai>=1.0.0
-anthropic>=0.18.0
-Pillow>=10.0.0
-screeninfo>=0.8.1
-requests>=2.31.0
-psutil>=5.9.0
+PySide6>=6.6.0,<6.8
+mss>=9.0.1,<10
+pytesseract>=0.3.10,<0.4
+pyautogui>=0.9.54,<0.10
+pynput>=1.7.6,<2
+Pillow>=10.0.0,<11
+pytest>=7.4.0,<9
