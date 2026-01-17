@@ -1,0 +1,26 @@
+from __future__ import annotations
+
+import sys
+
+from ai_bridge.preflight import check_gui_dependency
+from ai_bridge.tools.selfcheck import run_selfcheck
+
+
+def main() -> int:
+    if "--selfcheck" in sys.argv:
+        report = run_selfcheck()
+        for line in report.format_lines():
+            print(line)
+        return 0 if report.passed else 1
+    gui_check = check_gui_dependency()
+    if not gui_check.is_ok:
+        for message in gui_check.messages:
+            print(message)
+        return 1
+    from ai_bridge.ui.app import main as app_main
+
+    return app_main()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

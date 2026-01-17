@@ -1,0 +1,47 @@
+mode: normal
+allowlist_paths:
+  - Documents
+  - Downloads
+privacy:
+  redact_patterns:
+    - email
+    - phone
+    - card
+vm:
+  adapter: virtualbox
+  vm_name: "AI-Bridge"
+  snapshot_name: "clean"
+models:
+  default:
+    vision: mvp
+    reasoner: mvp
+    executor: mvp
+  game:
+    vision: mvp
+    reasoner: mvp
+    executor: mvp
+  sandbox:
+    vision: mvp
+    reasoner: backup
+    executor: backup
+providers:
+  mvp:
+    type: simple
+    fallback: ["backup"]
+  backup:
+    type: simple
+game_profiles:
+  - name: default
+    resolution: [1280, 720]
+    sensitivity: 1.0
+    roi: null
+  - name: shooter
+    resolution: [1920, 1080]
+    sensitivity: 1.3
+    roi: [0, 0, 1920, 1080]
+logging:
+  path: logs/session/session.jsonl
+  session_dir: logs/session
+dev:
+  dry_run: true
+  click_delay_ms: 350
